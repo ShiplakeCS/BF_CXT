@@ -1,0 +1,78 @@
+.moment{
+    border-width: 1px;
+    border-style:solid;
+    margin: 10px 0px 10px 0px;
+
+}
+.moment_rating_indicator{
+    color:gold;
+}
+.comment_metadata{
+    margin-right:10px;
+    display: inline-block;
+}
+
+.comment_metadata p{
+    margin:0px;
+}
+
+.comment_text{
+    display: inline;
+}
+.comment{
+    margin-bottom:10px;
+    background-color:lightgrey;
+    /**font-size: 2em; Needed to be readable on iPhone **/
+}
+
+h3.moment_comment_count{
+    margin-bottom: 0px;
+}
+
+
+ul#primary_nav{
+
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #333333;
+
+}
+
+ul#primary_nav li{
+
+    float: left;
+
+}
+
+ul#primary_nav li a{
+    display: block;
+    color: white;
+    text-align: center;
+    padding: 16px 16px 11px 16px;
+    text-decoration: none;
+}
+
+ul#primary_nav li a:hover {
+    background-color: #111111;
+    border-bottom-width: 5px;
+    border-bottom-style: solid;
+    border-bottom-color: lightcoral;
+
+}
+
+ul#primary_nav li a.nav_link_current_page {
+    border-bottom-width: 5px;
+    border-bottom-style: solid;
+    border-bottom-color: red;
+
+}
+
+.project_name{
+    display:block;
+    padding:16px 21px 16px 21px;
+    color:black;
+    background-color:lightgrey;
+
+}

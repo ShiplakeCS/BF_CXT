@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    {% if title %}
+        <title>{{ title }}</title>
+    {% else %}
+        <title>Bunnyfoot CX Toolkit</title>
+    {% endif %}
+    <link rel="stylesheet" href="/static/style/participants.css">
+    <script src="/static/js/participant_functions.js"></script>
+</head>
+<body>
+<nav>
+    <ul id="primary_nav">
+        <li id="pri_nav_project_name"><span class="project_name">{% if project_name %}{{ project_name }}{% else %}Bunnyfoot{% endif %}</span></li>
+        <li><a id="pri_nav_moments" href="/p/{{ project_id }}/moments">Moments</a></li>
+        <li><a id="pri_nav_messages" href="/p/messages">Messages</a></li>
+        <li>{% if logged_in %}<a id="pri_nav_login" href="/p/logout">Logout</a>{% else %}
+            <a id="pri_nav_logout" href="/p/login">Login</a>{% endif %}</li>
+    </ul>
+</nav>
+
+{% block content %}
+{% endblock %}
+</body>
+</html>
