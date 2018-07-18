@@ -273,7 +273,6 @@ class Consultant:
 
     @staticmethod
     def get_project_ids(consultant_id):
-        #TODO: Move this feature to Project object as it involves Project table.
         project_ids = []
         db = DB.get_db()
         rows = db.execute("SELECT project FROM ProjectConsultant WHERE consultant=?", [consultant_id]).fetchall()
@@ -457,6 +456,9 @@ class ParticipantNotActive(Exception):
 class ProjectNotFound(Exception):
     pass
 
+class DeleteActiveParticipantError(Exception):
+    pass
+
 class Participant:
 
     def __init__(self, id):
@@ -531,6 +533,7 @@ class Participant:
     @active.setter
     def active(self, value:bool):
         self.__active = value
+        self.update_last_activity_ts()
 
     @property
     def last_activity_ts(self):
@@ -609,13 +612,24 @@ class Participant:
         db.commit()
         return Participant(self.id)
 
-    def delete_from_db(self):
-        pass
+    def delete_from_db(self, admin_consultant:Consultant):
+
+        if not admin_consultant.admin:
+            raise ConsultantNotAdminError("Only administrators can delete participants from the database.")
+
+        if self.active:
+            raise DeleteActiveParticipantError("Cannot delete active participant. Deactivate before deleting.")
+
+        # TODO: Add ability to delete participant from database
+
+        db = DB.get_db()
+        db.execute("DELETE FROM Participant WHERE id=?",[self.id])
+        db.commit()
+        return "Participant {} deleted from database".format(self.id)
 
     @staticmethod
-    def add_new_to_db(project_id, display_name, active, last_activity_ts, description):
-    #  within-project-num is auto generated using
-    #  select within_project_num from Participant where project = 1 order by within_project_num desc
+    def add_new_to_db(project_id, display_name, active, description):
+    #  within-project-num is auto generated
     # PIN and Login URL are also randomly generated
 
         db = DB.get_db()
@@ -629,6 +643,7 @@ class Participant:
         else:
             next_within_project_num = 1
 
+        last_activity_ts = datetime.isoformat(datetime.utcnow())
         login_url = Participant.get_random_login_url()
         pin = Participant.get_random_pin()
 
@@ -639,22 +654,6 @@ class Participant:
         new_id = int(cur.lastrowid)
         return Participant(new_id)
 
-    @staticmethod
-    def bulk_add_to_db(participants_list, as_json=False):
-        # TODO: Work through a list of participant details (provided as a list of dicts or in json format) and add each to the database using add_new_to_db()
-
-        added_participants = []
-
-        if as_json:
-            # code to get json into dictionary form first
-            participants_list = json.loads(participants_list)
-
-        for p in participants_list:
-
-            added_participants.append(Participant.add_new_to_db(p['project_id'], p['display_name'], p['active'],
-                                                                p['last_activity_ts'], p['description']))
-
-        return added_participants
 
     @staticmethod
     def login(url, pin):
@@ -701,7 +700,6 @@ class Participant:
         return ps
 
     def to_dict(self):
-        # TODO: return representation of self as a dict
         return {
             "id": self.id,
             "project_id": self.project_id,
@@ -725,6 +723,9 @@ class ProjectBFCodeError(Exception):
     pass
 
 class ProjectActivationError(Exception):
+    pass
+
+class DeleteActiveProjectError(Exception):
     pass
 
 class Project:
@@ -901,24 +902,46 @@ class Project:
     def update_last_activity_ts(self):
         self.last_activity_ts = datetime.utcnow()
 
-    def update_bf_code(self, bf:str, admin_constulant:Consultant):
+        # db = DB.get_db()
+        # db.execute("UPDATE Project SET last_activity_ts=? WHERE id=?", [datetime.isoformat(self.last_activity_ts), self.id])
+        # db.commit()
+
+    @staticmethod
+    def bf_code_is_valid(bf:str):
 
         bf = bf.upper()
 
         if bf[:2] != "BF":
-            raise ProjectBFCodeError("BF code not in correct format, must start with BF.")
+            return False
+        else:
+            return True
 
-        if not admin_constulant.admin:
-            raise ConsultantNotAdminError("Only admin users have permission to update a project's BF code once created.")
+    @staticmethod
+    def bf_code_is_unique(bf:str):
 
         # Check bf code not already in use
         bf_check = DB.get_db().execute("SELECT id FROM Project WHERE bf_code=?", [bf]).fetchone()
 
         if bf_check:
-            raise ProjectBFCodeError("Cannot update project's internal BF code to {} as it is already in use.".format(bf))
+            return False
+        else:
+            return True
+
+    def update_bf_code(self, bf:str, admin_constulant:Consultant):
+
+        if not self.bf_code_is_valid(bf):
+            raise ProjectBFCodeError("BF code not in correct format, must start with BF.")
+
+        if not admin_constulant.admin:
+            raise ConsultantNotAdminError("Only admin users have permission to update a project's BF code once created.")
+
+        if not self.bf_code_is_unique(bf):
+            raise ProjectBFCodeError(
+                "Cannot update project's internal BF code to {} as it is already in use.".format(bf))
 
         self.__bf_code = bf
         self.update_last_activity_ts()
+        self.update_in_db() # Must update in DB to avoid two users claiming the same BF code before one is updated.
 
     def add_tag(self, tag):
 
@@ -976,13 +999,14 @@ class Project:
 
         if consultant_match or requesting_consultant.admin:
             self.__active = True
+            self.update_last_activity_ts()
 
         else:
             raise ProjectActivationError("Only administrators and assigned consultants can activate a project.")
 
     def deactivate(self, requesting_consultant: Consultant):
 
-        # Only assigned consultants or admin can activate a project
+        # Only assigned consultants or admin can deactivate a project
 
         consultant_match = False
 
@@ -994,24 +1018,125 @@ class Project:
         if consultant_match or requesting_consultant.admin:
             self.__active = False
 
+            # Deactivate participants that are associated with this project so that they are not able to login.
+            for p in self.participants:
+                p.active = False
+                p.update_in_db()
+
+            self.update_last_activity_ts()
+
         else:
             raise ProjectActivationError("Only administrators and assigned consultants can deactivate a project.")
 
     def update_in_db(self):
-        pass
+
+        db = DB.get_db()
+        db.execute("UPDATE Project SET bf_code=?, client=?, title=?, project_type=?, active=?, start_ts=?, last_activity_ts=? WHERE id=?",[self.bf_code, self.client_id, self.title, self.project_type_id, str(int(self.active)), datetime.isoformat(self.start_ts), datetime.isoformat(self.last_activity_ts),self.id])
+        db.commit()
+        return Project(self.id)
+
+    def delete_participants_from_db(self, admin_consultant:Consultant):
+
+        active_participants = False
+
+        for p in self.participants:
+            if p.active:
+                active_participants = True
+                raise DeleteActiveParticipantError("Attempt to delete project with active participants. Deactivate all participants before deleting the project. This should be done automatically when the project is deactivated.")
+                break
+
+        if not active_participants:
+            for p in self.participants:
+                p.delete_from_db(admin_consultant)
 
     def delete_from_db(self, admin_consultant:Consultant):
-        pass
+
+        if not admin_consultant.admin:
+            raise ConsultantNotAdminError("Only administrators can delete projects.")
+
+        if self.active:
+            raise DeleteActiveProjectError("Project is still active. Deactivate project {} before deleting.".format(self.id))
+
+        # Delete the participants for this project first
+        self.delete_participants_from_db(admin_consultant)
+
+        db = DB.get_db()
+        db.execute("DELETE FROM Project where id=?",[self.id])
+        db.commit()
+        return 'Project {} deleted from database'.format(self.bf_code)
+
+    def add_new_participant(self, display_name, active, description):
+        return Participant.add_new_to_db(self.id, display_name, active, description)
+
+    def bulk_add_new_participants(self, participants_list, as_json=False):
+
+        added_participants = []
+
+        if as_json:
+            # code to get json into dictionary form first
+            participants_list = json.loads(participants_list)
+
+        for p in participants_list:
+            added_participants.append(Participant.add_new_to_db(self.id, p['display_name'],
+                                                                p['active'], p['description']))
+        return added_participants
 
     @staticmethod
-    def add_new_to_db(bf_code, client_id, title, project_type_id, active, start_ts):
-        pass
+    def add_new_to_db(bf_code:str, client_id:int, title:str, project_type_id:int, active:bool, start_ts:datetime):
+
+        if not Project.bf_code_is_valid(bf_code):
+            raise ProjectBFCodeError("Project BF code is not in correct format. Must begin with BF.")
+
+        elif not Project.bf_code_is_unique((bf_code)):
+            raise ProjectBFCodeError("Project BF code {} is already in use.".format(bf_code))
+
+        db = DB.get_db()
+        cur = db.execute("INSERT INTO Project VALUES (?, ?, ?, ?, ?, ?, ?, ?)", [None, bf_code, client_id, title, project_type_id, str(int(active)), datetime.isoformat(start_ts), datetime.isoformat(datetime.utcnow())])
+        db.commit()
+        new_id = cur.lastrowid
+        return Project(int(new_id))
+
+    @staticmethod
+    def get_all_projects_json():
+
+        project_list = []
+
+        db = DB.get_db()
+        project_rows = db.execute("SELECT id FROM Project ORDER BY id").fetchall()
+        for row in project_rows:
+            project_list.append(Project(int(row['id'])).to_dict())
+
+        return json.dumps(project_list, indent=4)
+
 
     def to_dict(self):
-        pass
+
+        consultant_ids_list = []
+        for c in self.consultants:
+            consultant_ids_list.append(c.id)
+
+        participant_ids_list = []
+        for p in self.participants:
+            participant_ids_list.append(p.id)
+
+        return {
+            "id": self.id,
+            "bf_code": self.bf_code,
+            "client_id": self.client_id,
+            "client": self.client.to_dict(),
+            "title": self.title,
+            "project_type_id": self.project_type_id,
+            "project_type_description": self.project_type_description,
+            "active": self.active,
+            "start_ts": datetime.isoformat(self.start_ts),
+            "last_activity_ts": datetime.isoformat(self.last_activity_ts),
+            "consultants": consultant_ids_list,
+            "participants": participant_ids_list
+        }
 
     def to_json(self):
-        pass
+
+        return json.dumps(self.to_dict(), indent=4)
 
 @app.teardown_appcontext
 def close_db(error):

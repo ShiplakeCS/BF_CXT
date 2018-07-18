@@ -61,6 +61,57 @@ def get_participant(id):
 
 ## Project routes
 
+@app.route('/api/projects/', methods=['GET'])
+def get_projects():
+
+    if not auth_consultant():
+        abort(401)
+
+    return db_models.Project.get_all_projects_json()
+
+@app.route('/api/projects/<int:project_id>', methods=['GET'])
+def get_project(project_id):
+
+    if not auth_consultant():
+        abort(401)
+
+    try:
+        return db_models.Project(project_id).to_json()
+
+    except db_models.ProjectNotFound:
+        return json.dumps({"error_code":201, "error_text": "No project found with ID {}".format(project_id)}), 404
+
+
+@app.route('/api/projects/<int:project_id>/client', methods=['GET'])
+def get_project_client(project_id):
+
+    if not auth_consultant():
+        abort(401)
+
+    try:
+        return db_models.Project(project_id).client.to_json()
+
+    except db_models.ProjectNotFound:
+        return json.dumps({"error_code":201, "error_text": "No project found with ID {}".format(project_id)}), 404
+
+
+@app.route('/api/projects/<int:project_id>/consultants', methods=['GET'])
+def get_project_consultants(project_id):
+
+    if not auth_consultant():
+        abort(401)
+
+    consultant_dicts = []
+
+    try:
+        for c in db_models.Project(project_id).consultants:
+            consultant_dicts.append(c.to_dict())
+
+        return json.dumps(consultant_dicts, indent=4)
+
+    except db_models.ProjectNotFound:
+        return json.dumps({"error_code":201, "error_text": "No project found with ID {}".format(project_id)}), 404
+
 @app.route('/api/projects/<project_id>/participants', methods=['GET'])
 def get_project_participants(project_id):
 
