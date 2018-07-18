@@ -1,8 +1,111 @@
-from flask import session, abort
+from flask import session, abort, request
 from datetime import datetime
-from cxt_app import app
-
+from cxt_app import app, db_models
 import json
+
+# Read https://www.restapitutorial.com/index.html
+
+def auth_consultant():
+
+    return 'active_consultant' in session and session['active_consultant']is not None
+
+def auth_participant(id):
+
+    id = int(id)
+    return 'active_participant_id' in session and int(session['active_participant_id']) == id
+
+
+## Consultant routes
+
+@app.route('/api/consultants/<int:id>', methods=['GET'])
+def get_consultant(id):
+
+    if not auth_consultant():
+        abort(401)
+
+    try:
+        c = db_models.Consultant(id)
+        return c.to_json()
+
+    except db_models.ConsultantNotFoundError:
+        return json.dumps({"error_code":"301", "error_text":"No consultant found with ID {}".format(id)}), 404
+
+@app.route('/api/consultants/', methods=['GET'])
+def get_consultants():
+
+    if not auth_consultant():
+        abort(401)
+
+    # TODO: Add get all consultants static method to consultant object
+    return db_models.Consultant.get_all_consultants_json()
+
+
+## Participant routes
+
+@app.route('/api/participants/<int:id>', methods=['GET'])
+def get_participant(id):
+
+    # Only authorise is a consultant is logged in or a participant has logged in and the currently logged-in
+    # participant is the same as the participant's info being requested.
+
+    if auth_consultant() or auth_participant(id):
+
+        try:
+            return db_models.Participant(id).to_json()
+        except db_models.ParticipantNotFoundError:
+            return json.dumps({"error_code":"101", "error_text":"No participant found with ID {}".format(id)})
+
+    else:
+        abort(401)
+
+
+## Project routes
+
+@app.route('/api/projects/<project_id>/participants', methods=['GET'])
+def get_project_participants(project_id):
+
+    if not auth_consultant():
+        abort(401)
+
+
+    try:
+        project_participants = db_models.Participant.get_participants_for_project(project_id)
+
+        participants_dicts = []
+
+        for p in project_participants:
+
+            participants_dicts.append(p.to_dict())
+
+        return json.dumps(participants_dicts, indent=4)
+
+    except db_models.ProjectNotFound:
+
+        return json.dumps({"error_code":"201", "error_text":"No project found with ID {}".format(project_id)}), 404
+
+
+## Client routes
+
+@app.route('/api/clients/', methods=['GET'])
+def get_all_clients():
+
+    if not auth_consultant():
+        abort(401)
+
+    return db_models.Client.get_all_clients_json()
+
+@app.route('/api/clients/<int:client_id>', methods=['GET'])
+def get_client(client_id):
+
+    if not auth_consultant():
+        abort(401)
+
+    try:
+        return db_models.Client(client_id).to_json()
+
+    except db_models.ClientNotFoundError:
+        return json.dumps({"error_code": 401, "error_text": "No client found with ID {}".format(client_id)}, indent=4), 404
+
 
 @app.route('/api/get/moments/<participant_id>')
 def get_moments(participant_id):
