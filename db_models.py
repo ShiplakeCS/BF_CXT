@@ -729,6 +729,9 @@ class ProjectActivationError(Exception):
 class DeleteActiveProjectError(Exception):
     pass
 
+class ProjectTagNotFoundError(Exception):
+    pass
+
 class Project:
 
     def __init__(self, id):
@@ -956,10 +959,11 @@ class Project:
         if not tag_check:
 
             db = DB.get_db()
-            db.execute("INSERT INTO Tag VALUES (?,?,?)", [None, self.id, tag])
+            cur = db.execute("INSERT INTO Tag VALUES (?,?,?)", [None, self.id, tag])
             db.commit()
 
-        return self.refresh_project_tags()
+        self.refresh_project_tags()
+        return int(cur.lastrowid)
 
     def assign_consultant_to_project(self, c:Consultant):
 
@@ -1173,9 +1177,8 @@ class Moment:
         # Get related media, tags and comments
         self.__media = MomentMedia.get_media_for_moment(self.__id)
         self.refresh_tags()
+        self.refresh_comments()
 
-
-        #TODO: Write code for getting comments for each moment
 
     @property
     def id(self):
@@ -1237,6 +1240,16 @@ class Moment:
         self.__mark_for_download = value
 
     @property
+    def comments(self):
+        if len(self.__comments) == 0:
+            self.refresh_comments()
+        return self.__comments
+
+    def refresh_comments(self):
+
+        self.__comments = MomentComment.get_comments_for_moment(self.id)
+
+    @property
     def tags(self):
         if len(self.__tags) == 0:
             self.refresh_tags()
@@ -1267,17 +1280,58 @@ class Moment:
 
     def delete_from_db(self):
 
-        # TODO: Delete all comments related to this moment
+        # Delete all comments related to this moment
+        for c in self.comments:
+            c.delete_from_db()
+
         # Delete each moment media
         for m in self.media:
             m.delete_moment_media()
         # Delete moment media folder
         shutil.rmtree(os.path.join(app.config['MOMENT_MEDIA_FOLDER'],str(self.id)), True)
-        # Delete entry from DB for this moment
+
         db = DB.get_db()
+        # Delete MomentTag entries for this moment
+        db.execute("DELETE FROM MomentTag WHERE moment=?", [self.id])
+        # Delete entry from DB for this moment
         db.execute("DELETE FROM Moment WHERE id=?", [self.id])
         db.commit()
         return 'Moment {} deleted from DB along with all related media'
+
+    def assign_tag(self, tag_id:int):
+        # Check that tag_id exists for the project this moment relates to
+
+        if type(tag_id) != int:
+            raise ValueError("Tag ID must be an integer")
+
+        parent_project_id = self.parent_participant.project_id
+
+        tag_check_row = DB.get_db().execute("SELECT id FROM Tag WHERE project=? and id=?", [parent_project_id, tag_id]).fetchone()
+
+        if not tag_check_row:
+            raise ProjectTagNotFoundError("No Tag found with ID {} for Project ID {}".format(tag_id, parent_project_id))
+
+        try:
+            db = DB.get_db()
+            db.execute("INSERT INTO MomentTag VALUES (?,?)", [self.id, tag_id])
+            db.commit()
+            self.refresh_tags()
+        except sqlite3.IntegrityError:
+            pass
+        finally:
+            return 'Tag {} assigned to Moment {}'.format(tag_id, self.id)
+
+    def remove_tag(self, tag_id:int):
+
+        if type(tag_id) != int:
+            raise ValueError("Tag ID must be an integer")
+
+
+        db = DB.get_db()
+        db.execute("DELETE FROM MomentTag WHERE tag=?", [tag_id])
+        db.commit()
+        self.refresh_tags()
+        return 'Tag {} removed from Moment {}'.format(tag_id, self.id)
 
     def add_media(self):
         # TODO: Write code to allow new media files to be uploaded and attached to the moment
@@ -1299,6 +1353,9 @@ class Moment:
         for m in moment_media:
             moment_media_dict_list.append(m.to_dict())
 
+        moment_comments_dict_list = []
+        for c in self.comments:
+            moment_comments_dict_list.append(c.to_dict())
 
         return {
             "id": self.id,
@@ -1310,7 +1367,8 @@ class Moment:
             "modified_ts": datetime.isoformat(self.modified_ts),
             "mark_for_download": self.mark_for_download,
             "tags": self.tags,
-            "media": moment_media_dict_list
+            "media": moment_media_dict_list,
+            "comments": moment_comments_dict_list
         }
 
     def to_json(self):
@@ -1319,7 +1377,7 @@ class Moment:
     @staticmethod
     def get_moments_for_participant(participant_id:int):
         moments_list = []
-        moments_rows = DB.get_db().execute("SELECT id FROM Moment WHERE participant=?", [participant_id])
+        moments_rows = DB.get_db().execute("SELECT id FROM Moment WHERE participant=? ORDER BY id desc ", [participant_id])
         for row in moments_rows:
             moments_list.append(Moment(int(row['id'])))
         return moments_list
@@ -1427,7 +1485,7 @@ class MomentMedia:
 
         media_list =[]
 
-        media_rows = DB.get_db().execute("SELECT id FROM MomentMedia WHERE moment=?", [moment_id]).fetchall()
+        media_rows = DB.get_db().execute("SELECT id FROM MomentMedia WHERE moment=? order by id", [moment_id]).fetchall()
 
         for row in media_rows:
             media_list.append(MomentMedia(int(row['id'])))
@@ -1449,8 +1507,126 @@ class MomentMedia:
     def to_json(self):
         return json.dumps(self.to_dict(), indent=4)
 
-class MomentComment:
+class MomentCommentNotFoundError(Exception):
     pass
+
+class MomentComment:
+
+    CONSULTANT = 1
+    PARTICIPANT = 0
+
+    def __init__(self, id):
+
+        try:
+            self.__id = int(id)
+        except ValueError:
+            raise MomentCommentNotFoundError("MomentComment ID must be an integer")
+
+        comment_row = DB.get_db().execute("SELECT moment, participant, consultant, consultant_author, text, ts FROM MomentComment WHERE id=?", [self.__id]).fetchone()
+
+        if not comment_row:
+            raise MomentCommentNotFoundError("No MomentComment found with ID {}".format(self.__id))
+
+        self.__parent_moment_id = comment_row['moment']
+        self.__participant_id = comment_row['participant']
+        self.__consultant_id = comment_row['consultant']
+        self.__consultant_author = 1 == int(comment_row['consultant_author'])
+        self.__text = comment_row['text']
+        self.__ts = dateutil.parser.parse(comment_row['ts'])
+
+    @property
+    def id(self):
+        return self.__id
+
+    @property
+    def text(self):
+        return self.__text
+
+    @property
+    def parent_moment_id(self):
+        return self.__parent_moment_id
+
+    @property
+    def consultant_author(self):
+        return self.__consultant_author
+
+    @property
+    def author(self):
+        if self.consultant_author:
+            return MomentComment.CONSULTANT
+        else:
+            return MomentComment.PARTICIPANT
+
+    @property
+    def participant_id(self):
+        return self.__participant_id
+
+    @property
+    def consultant_id(self):
+        return self.__consultant_id
+
+    @property
+    def ts(self):
+        return self.__ts
+
+    def get_author(self):
+        if self.consultant_author == MomentComment.CONSULTANT:
+            return Consultant(self.consultant_id)
+        else:
+            return Participant(self.participant_id)
+
+    def delete_from_db(self):
+        db = DB.get_db()
+        db.execute("DELETE FROM MomentComment WHERE id=?", [self.id])
+        db.commit()
+        return 'MomentComment {} deleted from DB'.format(self.id)
+
+    def to_dict(self):
+        return {
+            'id': self.__id,
+            'parent_moment': self.parent_moment_id,
+            'participant_id': self.participant_id,
+            'consultant_id': self.consultant_id,
+            'consultant_author': self.consultant_author,
+            'text': self.text,
+            'ts': datetime.isoformat(self.ts)
+        }
+
+    def to_json(self):
+        return json.dumps(self.to_dict(), indent=4)
+
+    @staticmethod
+    def get_comments_for_moment(moment_id:int):
+
+        return MomentComment.get_comments_for_moment_since(moment_id,0)
+
+    @staticmethod
+    def get_comments_for_moment_json(moment_id:int):
+
+        return MomentComment.get_comments_for_moment_since_json(moment_id, 0)
+
+    @staticmethod
+    def get_comments_for_moment_since(moment_id:int, since_id:int):
+
+        cs = []
+
+        comment_rows = DB.get_db().execute("SELECT id FROM MomentComment WHERE moment=? AND id > ? ORDER BY id", [moment_id, since_id]).fetchall()
+
+        for row in comment_rows:
+            cs.append(MomentComment(int(row['id'])))
+
+        return cs
+
+    @staticmethod
+    def get_comments_for_moment_since_json(moment_id:int, since_id:int):
+
+        c_dicts = []
+
+        for c in MomentComment.get_comments_for_moment_since(moment_id, since_id):
+            c_dicts.append(c.to_dict())
+
+        return json.dumps(c_dicts, indent=4)
+
 
 @app.teardown_appcontext
 def close_db(error):
