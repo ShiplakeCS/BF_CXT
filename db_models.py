@@ -732,6 +732,9 @@ class DeleteActiveProjectError(Exception):
 class ProjectTagNotFoundError(Exception):
     pass
 
+class ConsultantNotAssignedToProjectError(Exception):
+    pass
+
 class Project:
 
     def __init__(self, id):
@@ -1088,6 +1091,14 @@ class Project:
                                                                 p['active'], p['description']))
         return added_participants
 
+    def consultant_is_assigned(self, c:Consultant):
+
+        for consultant in self.consultants:
+            if c.id == consultant.id:
+                return True
+
+        return False
+
     @staticmethod
     def add_new_to_db(bf_code:str, client_id:int, title:str, project_type_id:int, active:bool, start_ts:datetime):
 
@@ -1333,6 +1344,22 @@ class Moment:
         self.refresh_tags()
         return 'Tag {} removed from Moment {}'.format(tag_id, self.id)
 
+    def add_comment(self, text, consultant:Consultant=None):
+
+        if consultant:
+
+            if not (Project(self.parent_participant.project_id).consultant_is_assigned(consultant) or consultant.admin):
+                raise ConsultantNotAssignedToProjectError("Consultant {} not assigned to Project {} - cannot add comment.".format(consultant.id, self.parent_participant.project_id))
+            author_id = consultant.id
+            consultant_author = True
+        else:
+            author_id = self.parent_participant_id
+            consultant_author = False
+
+        MomentComment.add_new_to_db(self.id, author_id, consultant_author, text)
+        self.refresh_comments()
+        return 'Comment added'
+
     def add_media(self):
         # TODO: Write code to allow new media files to be uploaded and attached to the moment
         # New media's parent moment_id will be the self
@@ -1374,6 +1401,18 @@ class Moment:
     def to_json(self):
         return json.dumps(self.to_dict(), indent=4)
 
+    def get_comments_dict(self):
+        return [c.to_dict() for c in self.comments]
+
+    def get_comments_since(self, comment_id):
+        return MomentComment.get_comments_for_moment_since(self.id, comment_id)
+
+    def get_comments_since_json(self, comment_id):
+        return MomentComment.get_comments_for_moment_since_json(self.id, comment_id)
+
+    def get_comments_json(self):
+        return MomentComment.get_comments_for_moment_json(self.id)
+
     @staticmethod
     def get_moments_for_participant(participant_id:int):
         moments_list = []
@@ -1388,6 +1427,8 @@ class Moment:
         for m in Moment.get_moments_for_participant(participant_id):
             ms.append(m.to_dict())
         return json.dumps(ms, indent=4)
+
+
 
 class MomentMediaNotFoundError(Exception):
     pass
@@ -1431,11 +1472,11 @@ class MomentMedia:
 
     @property
     def path_small_thumb(self):
-        return self.path_original.split(".")[0] +  "_thumb_small.png"
+        return str(self.path_original.split(".")[0]) +  "_thumb_small.png"
 
     @property
     def path_large_thumb(self):
-        return self.path_original.split(".")[0] +  "_thumb_large.png"
+        return str(self.path_original.split(".")[0]) +  "_thumb_large.png"
 
     @property
     def id(self):
@@ -1512,9 +1553,6 @@ class MomentCommentNotFoundError(Exception):
 
 class MomentComment:
 
-    CONSULTANT = 1
-    PARTICIPANT = 0
-
     def __init__(self, id):
 
         try:
@@ -1522,14 +1560,13 @@ class MomentComment:
         except ValueError:
             raise MomentCommentNotFoundError("MomentComment ID must be an integer")
 
-        comment_row = DB.get_db().execute("SELECT moment, participant, consultant, consultant_author, text, ts FROM MomentComment WHERE id=?", [self.__id]).fetchone()
+        comment_row = DB.get_db().execute("SELECT moment, author, consultant_author, text, ts FROM MomentComment WHERE id=?", [self.__id]).fetchone()
 
         if not comment_row:
             raise MomentCommentNotFoundError("No MomentComment found with ID {}".format(self.__id))
 
         self.__parent_moment_id = comment_row['moment']
-        self.__participant_id = comment_row['participant']
-        self.__consultant_id = comment_row['consultant']
+        self.__author_id = comment_row['author']
         self.__consultant_author = 1 == int(comment_row['consultant_author'])
         self.__text = comment_row['text']
         self.__ts = dateutil.parser.parse(comment_row['ts'])
@@ -1551,29 +1588,14 @@ class MomentComment:
         return self.__consultant_author
 
     @property
-    def author(self):
-        if self.consultant_author:
-            return MomentComment.CONSULTANT
-        else:
-            return MomentComment.PARTICIPANT
-
-    @property
-    def participant_id(self):
-        return self.__participant_id
-
-    @property
-    def consultant_id(self):
-        return self.__consultant_id
-
-    @property
     def ts(self):
         return self.__ts
 
     def get_author(self):
-        if self.consultant_author == MomentComment.CONSULTANT:
-            return Consultant(self.consultant_id)
+        if self.__consultant_author:
+            return Consultant(self.__author_id)
         else:
-            return Participant(self.participant_id)
+            return Participant(self.__author_id)
 
     def delete_from_db(self):
         db = DB.get_db()
@@ -1585,9 +1607,9 @@ class MomentComment:
         return {
             'id': self.__id,
             'parent_moment': self.parent_moment_id,
-            'participant_id': self.participant_id,
-            'consultant_id': self.consultant_id,
+            'author_id': self.__author_id,
             'consultant_author': self.consultant_author,
+            'display_name': self.get_author().display_name,
             'text': self.text,
             'ts': datetime.isoformat(self.ts)
         }
@@ -1626,6 +1648,14 @@ class MomentComment:
             c_dicts.append(c.to_dict())
 
         return json.dumps(c_dicts, indent=4)
+
+    @staticmethod
+    def add_new_to_db(moment_id, author_id, consultant_author:bool, text:str):
+
+        db = DB.get_db()
+        cur = db.execute("INSERT INTO MomentComment VALUES (?,?,?,?,?,?)", [None, moment_id, author_id, consultant_author, text, datetime.isoformat(datetime.utcnow()) ])
+        db.commit()
+        return MomentComment(int(cur.lastrowid))
 
 
 @app.teardown_appcontext
