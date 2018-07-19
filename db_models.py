@@ -1,9 +1,9 @@
-import sqlite3, json, uuid, dateutil.parser, random
+import sqlite3, json, uuid, dateutil.parser, random, os, shutil
 from flask import g
 from cxt_app import app
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
-
+from PIL import Image
 
 class DB:
     """
@@ -29,6 +29,7 @@ class DB:
     def close_db(error):
         if hasattr(g, 'db'):
             g.db.close()
+
 
 
 class ConsultantNotFoundError(Exception):
@@ -1051,6 +1052,8 @@ class Project:
 
     def delete_from_db(self, admin_consultant:Consultant):
 
+        # TODO: Add code to delete moments, comments, tags and moment media related to project
+
         if not admin_consultant.admin:
             raise ConsultantNotAdminError("Only administrators can delete projects.")
 
@@ -1137,6 +1140,317 @@ class Project:
     def to_json(self):
 
         return json.dumps(self.to_dict(), indent=4)
+
+
+class MomentNotFoundError(Exception):
+    pass
+
+class Moment:
+
+    def __init__(self, id):
+
+        try:
+            self.__id = int(id)
+        except:
+            MomentNotFoundError("Moment ID must be an integer.")
+
+        moment_details = DB.get_db().execute("SELECT participant, rating, text, gps_long, gps_lat, added_ts, modified_ts, mark_for_download FROM Moment WHERE id=?", [self.__id]).fetchone()
+
+        if not moment_details:
+            raise MomentNotFoundError("No Moment found with ID {}".format(id))
+
+        self.__participant_id = int(moment_details['participant'])
+        self.__rating = int(moment_details['rating'])
+        self.__text = moment_details['text']
+        self.__gps = {'long': float(moment_details['gps_long']) if moment_details['gps_long'] else None, 'lat': float(moment_details['gps_lat']) if moment_details['gps_lat'] else None}
+        self.__added_ts = dateutil.parser.parse(moment_details['added_ts'])
+        self.__modified_ts = dateutil.parser.parse(moment_details['modified_ts'])
+        self.__mark_for_download = 1 == int(moment_details['mark_for_download']) if moment_details['mark_for_download'] else False
+        self.__media = []
+        self.__comments = []
+        self.__tags = []
+
+        # Get related media, tags and comments
+        self.__media = MomentMedia.get_media_for_moment(self.__id)
+        self.refresh_tags()
+
+
+        #TODO: Write code for getting comments for each moment
+
+    @property
+    def id(self):
+        return self.__id
+
+    @property
+    def parent_participant_id(self):
+        return self.__participant_id
+
+    @property
+    def parent_participant(self):
+        return Participant(self.parent_participant_id)
+    
+    @property
+    def rating(self):
+        return self.__rating
+
+    @rating.setter
+    def rating(self, value):
+
+        if type(value) != int:
+
+            raise ValueError("Moment rating must be an integer")
+
+        elif value < 1 or value > 5:
+            raise ValueError("Moment rating must be between 1 and 5 inclusive")
+
+        else:
+            self.__rating = value
+            self.__update_modified_ts()
+
+    @property
+    def text(self):
+        return self.__text
+
+    @text.setter
+    def text(self, value):
+        self.__text = value
+        self.__update_modified_ts()
+
+    @property
+    def gps(self):
+        return self.__gps
+
+    @property
+    def added_ts(self):
+        return self.__added_ts
+
+    @property
+    def modified_ts(self):
+        return self.__modified_ts
+
+    @property
+    def mark_for_download(self):
+        return self.__mark_for_download
+
+    @mark_for_download.setter
+    def mark_for_download(self, value:bool):
+        self.__mark_for_download = value
+
+    @property
+    def tags(self):
+        if len(self.__tags) == 0:
+            self.refresh_tags()
+        return self.__tags
+
+    def refresh_tags(self):
+
+        self.__tags = []
+
+        project_tag_rows = DB.get_db().execute("SELECT Tag.text FROM Tag, MomentTag WHERE MomentTag.tag=Tag.id and MomentTag.moment=?",[self.id]).fetchall()
+
+        for row in project_tag_rows:
+            self.__tags.append(row['text'])
+
+    @property
+    def media(self):
+        return self.__media
+
+    def __update_modified_ts(self):
+        self.__modified_ts = datetime.utcnow()
+
+    def update_in_db(self):
+
+        db = DB.get_db()
+        db.execute("UPDATE Moment SET rating=?, text=?, gps_long=?, gps_lat=?, modified_ts=?, mark_for_download=? WHERE id=?", [self.rating, self.text, self.gps['long'], self.gps['lat'], self.modified_ts, str(int(self.mark_for_download)), self.id])
+        db.commit()
+        return Moment(self.id)
+
+    def delete_from_db(self):
+
+        # TODO: Delete all comments related to this moment
+        # Delete each moment media
+        for m in self.media:
+            m.delete_moment_media()
+        # Delete moment media folder
+        shutil.rmtree(os.path.join(app.config['MOMENT_MEDIA_FOLDER'],str(self.id)), True)
+        # Delete entry from DB for this moment
+        db = DB.get_db()
+        db.execute("DELETE FROM Moment WHERE id=?", [self.id])
+        db.commit()
+        return 'Moment {} deleted from DB along with all related media'
+
+    def add_media(self):
+        # TODO: Write code to allow new media files to be uploaded and attached to the moment
+        # New media's parent moment_id will be the self
+        # Need to pass a file object or upload a file object to temp path and then pass the filepath
+        # Need to trigger static method of MomentMedia that creates a new entry in DB, generates new folders for
+        # storing the media, places the media in that location and then generates the thumbnails for that media.
+        # Note that the flask uploader will take the file and place it in the temporary uploads folder. It will
+        # save it with a secure filename that will need to be unique (timestamp it) - this can then be used to locate
+        # and copy it.
+        pass
+
+    def to_dict(self):
+
+        #TODO: Add code to return list of comments for momment
+
+        moment_media_dict_list = []
+        moment_media = MomentMedia.get_media_for_moment(self.id)
+        for m in moment_media:
+            moment_media_dict_list.append(m.to_dict())
+
+
+        return {
+            "id": self.id,
+            "parent_participant_id": self.parent_participant_id,
+            "rating": self.rating,
+            "text": self.text,
+            "gps": self.gps,
+            "added_ts": datetime.isoformat(self.added_ts),
+            "modified_ts": datetime.isoformat(self.modified_ts),
+            "mark_for_download": self.mark_for_download,
+            "tags": self.tags,
+            "media": moment_media_dict_list
+        }
+
+    def to_json(self):
+        return json.dumps(self.to_dict(), indent=4)
+
+    @staticmethod
+    def get_moments_for_participant(participant_id:int):
+        moments_list = []
+        moments_rows = DB.get_db().execute("SELECT id FROM Moment WHERE participant=?", [participant_id])
+        for row in moments_rows:
+            moments_list.append(Moment(int(row['id'])))
+        return moments_list
+
+    @staticmethod
+    def get_moments_for_participant_json(participant_id:int):
+        ms = []
+        for m in Moment.get_moments_for_participant(participant_id):
+            ms.append(m.to_dict())
+        return json.dumps(ms, indent=4)
+
+class MomentMediaNotFoundError(Exception):
+    pass
+
+class MomentMediaFormatError(Exception):
+    pass
+
+class MomentMedia:
+
+    def __init__(self, id):
+
+        try:
+            self.__id = int(id)
+        except ValueError:
+            raise MomentMediaNotFoundError("MomentMedia ID must be an integer")
+
+        media_details = DB.get_db().execute("SELECT moment, original_filename, MediaType.description FROM MomentMedia, MediaType WHERE MomentMedia.media_type=MediaType.id AND MomentMedia.id=?",[self.__id]).fetchone()
+
+        if not media_details:
+            raise MomentMediaNotFoundError("No MomentMedia found with ID {}".format(id))
+
+        self.__type = media_details['description']
+        self.__original_filename = media_details['original_filename']
+        self.__parent_moment_id = media_details['moment']
+
+    @property
+    def media_type(self):
+        return self.__type
+
+    @property
+    def original_filename(self):
+        return self.__original_filename
+
+    @property
+    def media_file_path(self):
+        return os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(self.parent_moment_id), str(self.id))
+
+    @property
+    def path_original(self):
+        return os.path.join(self.media_file_path, self.original_filename)
+
+    @property
+    def path_small_thumb(self):
+        return self.path_original.split(".")[0] +  "_thumb_small.png"
+
+    @property
+    def path_large_thumb(self):
+        return self.path_original.split(".")[0] +  "_thumb_large.png"
+
+    @property
+    def id(self):
+        return self.__id
+
+    @property
+    def parent_moment_id(self):
+        return self.__parent_moment_id
+
+    def __generate_thumbnails(self):
+        # TODO: generate small and large thumbnails for the media at the original path. Update paths to thumbnails and update in DB.
+
+        if self.media_type == "image":
+
+            original_file, original_file_ext = self.original_filename.split(".")
+
+            if not(original_file_ext.lower() == "jpg" or original_file_ext.lower() == "jpeg" or original_file_ext.lower() == "png"):
+                raise MomentMediaFormatError("MomentMedia image thumbnails can only be created from PNG or JPG originals.")
+
+            # Generate small thumbnail
+            im = Image.open(os.path.join(self.media_file_path, self.original_filename))
+            im.thumbnail((128,128), Image.ANTIALIAS)
+            small_thumb_filepath = os.path.join(self.media_file_path, original_file + "_thumb_small.jpg")
+            im.save(small_thumb_filepath, "JPEG")
+
+            # Generate large thumbnail
+            im = Image.open(os.path.join(self.media_file_path, self.original_filename))
+            im.thumbnail((512,512), Image.ANTIALIAS)
+            large_thumb_filepath = os.path.join(self.media_file_path, original_file + "_thumb_large.jpg")
+            im.save(large_thumb_filepath, "JPEG")
+
+        elif self.media_type == "video":
+            # TODO: Add code to take a frame from video and generate two thumbnails
+            pass
+
+    def delete_moment_media(self):
+        # delete media files
+        shutil.rmtree(self.media_file_path, True)
+        # delete moment media entry from DB
+        db = DB.get_db()
+        db.execute("DELETE FROM MomentMedia WHERE id=?", [self.id])
+        db.commit()
+        return 'MomentMedia {} deleted from DB and all media files removed.'.format(self.id)
+
+    @staticmethod
+    def get_media_for_moment(moment_id):
+
+        media_list =[]
+
+        media_rows = DB.get_db().execute("SELECT id FROM MomentMedia WHERE moment=?", [moment_id]).fetchall()
+
+        for row in media_rows:
+            media_list.append(MomentMedia(int(row['id'])))
+
+        return media_list
+
+    # TODO: Write code for providing MomentMedia as dictionary and JSON
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "media_type": self.media_type,
+            "path_original": self.path_original,
+            "path_small_thumbnail": self.path_small_thumb,
+            "path_large_thumbnail": self.path_large_thumb,
+            "parent_moment_id": self.parent_moment_id
+        }
+
+    def to_json(self):
+        return json.dumps(self.to_dict(), indent=4)
+
+class MomentComment:
+    pass
 
 @app.teardown_appcontext
 def close_db(error):

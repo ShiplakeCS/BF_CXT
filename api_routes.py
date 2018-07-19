@@ -3,16 +3,29 @@ from datetime import datetime
 from cxt_app import app, db_models
 import json
 
-# Read https://www.restapitutorial.com/index.html
+# Read for more details on builing an API, particularly its routes: https://www.restapitutorial.com/index.html
+# Read for more details on authentication and authorisation when accessing an API: https://blog.restcase.com/restful-api-authentication-basics/
+
+@app.route('/config')
+def show_config():
+    return json.dumps({"upload_folder":app.config['UPLOAD_FOLDER'], "moment_media_folder": app.config['MOMENT_MEDIA_FOLDER']}, indent=4)
+
+
+
+# TODO: These routes do not yet represent a true, stateless RESTful API. They require that a user has set up a session and has logged in/authenticated to that session. This works for web-app, but wouldn't for a native app requesting info via an API.
 
 def auth_consultant():
 
+    # TODO: Replace logic for authroising a consultant to provide a true authenticated API
+
     return 'active_consultant' in session and session['active_consultant']is not None
+
 
 def auth_participant(id):
 
     id = int(id)
     return 'active_participant_id' in session and int(session['active_participant_id']) == id
+
 
 
 ## Consultant routes
