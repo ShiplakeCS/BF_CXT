@@ -480,6 +480,7 @@ class Participant:
             self.__description = row['description']
             self.__login_URL = row['login_url']
             self.__pin = row['pin']
+            self.__moments = []
 
         else:
             raise ParticipantNotFoundError("No participant found with ID {}".format(id))
@@ -491,6 +492,15 @@ class Participant:
     @property
     def project_id(self):
         return self.__project_id
+
+    @property
+    def moments(self):
+        if len(self.__moments) == 0:
+            self.refresh_moments()
+        return self.__moments
+
+    def refresh_moments(self):
+        self.__moments = Moment.get_moments_for_participant(self.id)
 
     @property
     def within_project_number(self):
@@ -621,12 +631,23 @@ class Participant:
         if self.active:
             raise DeleteActiveParticipantError("Cannot delete active participant. Deactivate before deleting.")
 
-        # TODO: Add ability to delete participant from database
+        try:
+            # Delete participant's moments from DB
+            [m.delete_from_db() for m in self.moments]
 
-        db = DB.get_db()
-        db.execute("DELETE FROM Participant WHERE id=?",[self.id])
-        db.commit()
-        return "Participant {} deleted from database".format(self.id)
+            db = DB.get_db()
+            db.execute("DELETE FROM Participant WHERE id=?",[self.id])
+            db.commit()
+            return "Participant {} deleted from database".format(self.id)
+
+        except Exception as e:
+            db = DB.get_db()
+            db.rollback()
+            raise e
+
+    def add_moment(self):
+        #TODO: Write code to add new moment to database
+        pass
 
     @staticmethod
     def add_new_to_db(project_id, display_name, active, description):
@@ -968,6 +989,19 @@ class Project:
         self.refresh_project_tags()
         return int(cur.lastrowid)
 
+    def delete_tag(self, tag_id):
+
+        try:
+            db = DB.get_db()
+            db.execute("DELETE FROM Tag WHERE id=?",[self.id])
+            db.commit()
+
+        except Exception as e:
+            db.rollback()
+            raise e
+
+        return 'Tag {} removed from DB'.format(tag_id)
+
     def assign_consultant_to_project(self, c:Consultant):
 
         # If the consultant has already been assigned then just don't do anything
@@ -1059,21 +1093,30 @@ class Project:
 
     def delete_from_db(self, admin_consultant:Consultant):
 
-        # TODO: Add code to delete moments, comments, tags and moment media related to project
-
         if not admin_consultant.admin:
             raise ConsultantNotAdminError("Only administrators can delete projects.")
 
         if self.active:
             raise DeleteActiveProjectError("Project is still active. Deactivate project {} before deleting.".format(self.id))
 
-        # Delete the participants for this project first
-        self.delete_participants_from_db(admin_consultant)
+        try:
+            # Delete the participants for this project first
+            self.delete_participants_from_db(admin_consultant)
 
-        db = DB.get_db()
-        db.execute("DELETE FROM Project where id=?",[self.id])
-        db.commit()
-        return 'Project {} deleted from database'.format(self.bf_code)
+            # Unassign all consultants from this project
+            [self.remove_consultant_from_project(c, admin_consultant) for c in self.consultants]
+
+            # Remove project entries from Project and Tag tables in DB
+            db = DB.get_db()
+            db.execute("DELETE FROM Tag where project=?", [self.id])
+            db.execute("DELETE FROM Project where id=?",[self.id])
+            db.commit()
+            return 'Project {} deleted from database'.format(self.bf_code)
+
+        except Exception as e:
+            db = DB.get_db()
+            db.rollback()
+            raise e
 
     def add_new_participant(self, display_name, active, description):
         return Participant.add_new_to_db(self.id, display_name, active, description)
@@ -1186,7 +1229,7 @@ class Moment:
         self.__tags = []
 
         # Get related media, tags and comments
-        self.__media = MomentMedia.get_media_for_moment(self.__id)
+        self.refresh_media()
         self.refresh_tags()
         self.refresh_comments()
 
@@ -1279,6 +1322,9 @@ class Moment:
     def media(self):
         return self.__media
 
+    def refresh_media(self):
+        self.__media = MomentMedia.get_media_for_moment(self.__id)
+
     def __update_modified_ts(self):
         self.__modified_ts = datetime.utcnow()
 
@@ -1360,20 +1406,13 @@ class Moment:
         self.refresh_comments()
         return 'Comment added'
 
-    def add_media(self):
-        # TODO: Write code to allow new media files to be uploaded and attached to the moment
-        # New media's parent moment_id will be the self
-        # Need to pass a file object or upload a file object to temp path and then pass the filepath
-        # Need to trigger static method of MomentMedia that creates a new entry in DB, generates new folders for
-        # storing the media, places the media in that location and then generates the thumbnails for that media.
-        # Note that the flask uploader will take the file and place it in the temporary uploads folder. It will
-        # save it with a secure filename that will need to be unique (timestamp it) - this can then be used to locate
-        # and copy it.
-        pass
+    def add_media(self, media_type, file_name):
+
+        m = MomentMedia.add_new_to_db(self.id, media_type, file_name)
+        self.refresh_media()
+        return m
 
     def to_dict(self):
-
-        #TODO: Add code to return list of comments for momment
 
         moment_media_dict_list = []
         moment_media = MomentMedia.get_media_for_moment(self.id)
@@ -1428,7 +1467,12 @@ class Moment:
             ms.append(m.to_dict())
         return json.dumps(ms, indent=4)
 
+    @staticmethod
+    def exists_in_db(moment_id:int):
 
+        moment_details = DB.get_db().execute("SELECT participant FROM Moment WHERE id=?", [moment_id]).fetchone()
+
+        return True if moment_details else False
 
 class MomentMediaNotFoundError(Exception):
     pass
@@ -1486,8 +1530,7 @@ class MomentMedia:
     def parent_moment_id(self):
         return self.__parent_moment_id
 
-    def __generate_thumbnails(self):
-        # TODO: generate small and large thumbnails for the media at the original path. Update paths to thumbnails and update in DB.
+    def generate_thumbnails(self):
 
         if self.media_type == "image":
 
@@ -1533,7 +1576,47 @@ class MomentMedia:
 
         return media_list
 
-    # TODO: Write code for providing MomentMedia as dictionary and JSON
+    @staticmethod
+    def add_new_to_db(moment_id, media_type, file_name):
+
+        # Check if the moment exists:
+        if not Moment.exists_in_db(moment_id):
+            raise MomentNotFoundError("No moment found in DB with ID {} - Cannot add moment media for this moment.".format(moment_id))
+
+        # Check if file exists within upload folder - may not be there yet, not ready to copy over
+        tmp_path = os.path.join(app.config['UPLOAD_FOLDER'], file_name)
+        if not os.path.exists(tmp_path):
+            raise MomentMediaNotFoundError("{} not found within temporary upload folder.".format(file_name))
+
+        # Add media record to db, get the new id
+
+        if type(media_type) == str and media_type.lower() == "image":
+            media_type = 1
+        elif type(media_type) == str and media_type.lower() == "video":
+            media_type = 2
+        elif media_type == 1 or media_type == 2:
+            pass
+        else:
+            raise MomentMediaFormatError("MomentMedia type must be image(1) or video(2).")
+
+        db = DB.get_db()
+        cur = db.execute("INSERT INTO MomentMedia VALUES (?,?,?,?)", [None, moment_id, media_type, file_name])
+        db.commit()
+        new_id = cur.lastrowid
+
+        # Create folder path for the media
+        media_path = os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(moment_id), str(new_id))
+        os.makedirs(media_path, exist_ok=True)
+
+        # Copy file to proper location
+
+        shutil.move(tmp_path, media_path)
+
+        # Generate thumbnails
+        new_moment_media = MomentMedia(int(new_id))
+        new_moment_media.generate_thumbnails()
+
+        return new_moment_media
 
     def to_dict(self):
         return {
