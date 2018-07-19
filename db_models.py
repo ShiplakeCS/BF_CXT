@@ -10,6 +10,8 @@ class DB:
     Provides static methods to access the database
     """
 
+    DB_INSTANCE = None
+
     @staticmethod
     def connect_db():
         # See http://flask.pocoo.org/docs/0.12/tutorial/setup/#tutorial-setup
@@ -22,7 +24,9 @@ class DB:
         # if not hasattr(g, 'db'):
         #     g.db = DB.connect_db()
         # return g.db
-        return DB.connect_db()
+        if not DB.DB_INSTANCE:
+            DB.DB_INSTANCE = DB.connect_db()
+        return DB.DB_INSTANCE
 
     @staticmethod
     @app.teardown_appcontext
@@ -635,6 +639,10 @@ class Participant:
             # Delete participant's moments from DB
             [m.delete_from_db() for m in self.moments]
 
+            # Delete media folder for participant's uploaded media
+            shutil.rmtree(os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(self.project_id),
+                                       str(self.id)), True)
+
             db = DB.get_db()
             db.execute("DELETE FROM Participant WHERE id=?",[self.id])
             db.commit()
@@ -754,6 +762,9 @@ class ProjectTagNotFoundError(Exception):
     pass
 
 class ConsultantNotAssignedToProjectError(Exception):
+    pass
+
+class UploadParticipantCSVFormatError(Exception):
     pass
 
 class Project:
@@ -1103,6 +1114,10 @@ class Project:
             # Delete the participants for this project first
             self.delete_participants_from_db(admin_consultant)
 
+            # Delete media folder for project's uploaded media
+            shutil.rmtree(os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(self.id)), True)
+
+
             # Unassign all consultants from this project
             [self.remove_consultant_from_project(c, admin_consultant) for c in self.consultants]
 
@@ -1120,6 +1135,31 @@ class Project:
 
     def add_new_participant(self, display_name, active, description):
         return Participant.add_new_to_db(self.id, display_name, active, description)
+
+    def bulk_add_new_participants_from_csv(self, csv_file_name):
+        try:
+            csv_file_path = os.path.join(app.config['UPLOAD_FOLDER'], csv_file_name)
+            participants = []
+            with open(csv_file_path,'r') as csv_file:
+                csv_file.readline()
+                for line in csv_file:
+
+                    data = line.rstrip("\n").split(",")
+                    if len(data) != 3:
+                        raise UploadParticipantCSVFormatError("Invalid CSV file format. "
+                                                              "Should contain 3 columns, has {}".format(len(data)))
+                    participants.append({
+                        'display_name':data[0],
+                        'active':data[1].lower()[0]=="y" or data[1].lower()=="true" or data[1]=="1",
+                        'description':data[2]
+                    })
+
+            os.remove(csv_file_path)
+
+            return self.bulk_add_new_participants(participants)
+
+        except FileNotFoundError:
+            raise FileNotFoundError("Could not find csv_file {}, aborting bulk participant upload.".format(csv_file_name))
 
     def bulk_add_new_participants(self, participants_list, as_json=False):
 
@@ -1201,6 +1241,9 @@ class Project:
 
 
 class MomentNotFoundError(Exception):
+    pass
+
+class MomentRatingValueError(Exception):
     pass
 
 class Moment:
@@ -1345,7 +1388,7 @@ class Moment:
         for m in self.media:
             m.delete_moment_media()
         # Delete moment media folder
-        shutil.rmtree(os.path.join(app.config['MOMENT_MEDIA_FOLDER'],str(self.id)), True)
+        shutil.rmtree(os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(self.parent_participant.project_id), str(self.parent_participant_id), str(self.id)), True)
 
         db = DB.get_db()
         # Delete MomentTag entries for this moment
@@ -1353,7 +1396,7 @@ class Moment:
         # Delete entry from DB for this moment
         db.execute("DELETE FROM Moment WHERE id=?", [self.id])
         db.commit()
-        return 'Moment {} deleted from DB along with all related media'
+        return 'Moment {} deleted from DB along with all related media'.format(self.id)
 
     def assign_tag(self, tag_id:int):
         # Check that tag_id exists for the project this moment relates to
@@ -1411,6 +1454,47 @@ class Moment:
         m = MomentMedia.add_new_to_db(self.id, media_type, file_name)
         self.refresh_media()
         return m
+
+    @staticmethod
+    def add_new_to_db(participant_id:int, rating:int, text:str, gps_long:float, gps_lat:float, file_names:[]):
+
+        try:
+            rating = int(rating)
+            if rating < 1 or rating > 5:
+                raise ValueError
+
+        except ValueError:
+            raise MomentRatingValueError("Moment ratings must be integers between 1 and 5.")
+
+        try:
+            # check participant ID exists:
+            p = Participant(int(participant_id))
+
+            # Add new moment data to Moment table in DB
+            db = DB.get_db()
+            cur = db.execute("INSERT INTO Moment VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",[None, participant_id, rating, text, gps_long, gps_lat, datetime.isoformat(datetime.utcnow()), datetime.isoformat(datetime.utcnow()), 0])
+            new_moment_id = cur.lastrowid
+
+            # check filenames are for acceptable file types and add if OK:
+            for fn in file_names:
+                if ".png" in fn or ".jpg" in fn or ".jpeg" in fn:
+                    media_type = "image"
+                elif ".mov" in fn or ".m4v" in fn or ".mp4" in fn:
+                    media_type = "video"
+                else:
+                    raise MomentMediaFormatError("Moment media files must be image (jpg/png or video (mov/mp4/m4v) format.")
+
+                MomentMedia.add_new_to_db(new_moment_id, media_type, fn)
+
+            db.commit()
+            return Moment(new_moment_id)
+
+        # except ParticipantNotFoundError:
+        #     raise ParticipantNotFoundError("Participant {} not found, cannot add moment.".format(participant_id))
+
+        except Exception as e:
+            DB.get_db().rollback()
+            raise e
 
     def to_dict(self):
 
@@ -1508,7 +1592,8 @@ class MomentMedia:
 
     @property
     def media_file_path(self):
-        return os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(self.parent_moment_id), str(self.id))
+        #return os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(self.parent_moment_id), str(self.id))
+        return os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(Moment(self.parent_moment_id).parent_participant.project_id),str(Moment(self.parent_moment_id).parent_participant_id) ,str(self.parent_moment_id), str(self.id))
 
     @property
     def path_original(self):
@@ -1579,44 +1664,54 @@ class MomentMedia:
     @staticmethod
     def add_new_to_db(moment_id, media_type, file_name):
 
-        # Check if the moment exists:
-        if not Moment.exists_in_db(moment_id):
-            raise MomentNotFoundError("No moment found in DB with ID {} - Cannot add moment media for this moment.".format(moment_id))
+        try:
 
-        # Check if file exists within upload folder - may not be there yet, not ready to copy over
-        tmp_path = os.path.join(app.config['UPLOAD_FOLDER'], file_name)
-        if not os.path.exists(tmp_path):
-            raise MomentMediaNotFoundError("{} not found within temporary upload folder.".format(file_name))
+            # Check if the moment exists:
+            if not Moment.exists_in_db(moment_id):
+                raise MomentNotFoundError("No moment found in DB with ID {} - Cannot add moment media for this moment.".format(moment_id))
+                #pass
 
-        # Add media record to db, get the new id
+            # Check if file exists within upload folder - may not be there yet, not ready to copy over
+            tmp_path = os.path.join(app.config['UPLOAD_FOLDER'], file_name)
+            if not os.path.exists(tmp_path):
+                raise MomentMediaNotFoundError("{} not found within temporary upload folder.".format(file_name))
 
-        if type(media_type) == str and media_type.lower() == "image":
-            media_type = 1
-        elif type(media_type) == str and media_type.lower() == "video":
-            media_type = 2
-        elif media_type == 1 or media_type == 2:
-            pass
-        else:
-            raise MomentMediaFormatError("MomentMedia type must be image(1) or video(2).")
+            # Add media record to db, get the new id
 
-        db = DB.get_db()
-        cur = db.execute("INSERT INTO MomentMedia VALUES (?,?,?,?)", [None, moment_id, media_type, file_name])
-        db.commit()
-        new_id = cur.lastrowid
+            if type(media_type) == str and media_type.lower() == "image":
+                media_type = 1
+            elif type(media_type) == str and media_type.lower() == "video":
+                media_type = 2
+            elif media_type == 1 or media_type == 2:
+                pass
+            else:
+                raise MomentMediaFormatError("MomentMedia type must be image(1) or video(2).")
 
-        # Create folder path for the media
-        media_path = os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(moment_id), str(new_id))
-        os.makedirs(media_path, exist_ok=True)
+            db = DB.get_db()
+            cur = db.execute("INSERT INTO MomentMedia VALUES (?,?,?,?)", [None, moment_id, media_type, file_name])
+            new_id = cur.lastrowid
 
-        # Copy file to proper location
+            # Create folder path for the media
+            #media_path = os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(moment_id), str(new_id))
+            media_path = os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(Moment(moment_id).parent_participant.project_id), str(Moment(moment_id).parent_participant_id), str(moment_id), str(new_id))
+            os.makedirs(media_path, exist_ok=True)
 
-        shutil.move(tmp_path, media_path)
+            # Copy file to proper location
 
-        # Generate thumbnails
-        new_moment_media = MomentMedia(int(new_id))
-        new_moment_media.generate_thumbnails()
+            shutil.move(tmp_path, media_path)
 
-        return new_moment_media
+            db.commit()
+
+            # Generate thumbnails
+            new_moment_media = MomentMedia(int(new_id))
+            new_moment_media.generate_thumbnails()
+
+            return new_moment_media
+
+        except Exception as e:
+            db = DB.get_db()
+            db.rollback()
+            raise e
 
     def to_dict(self):
         return {
