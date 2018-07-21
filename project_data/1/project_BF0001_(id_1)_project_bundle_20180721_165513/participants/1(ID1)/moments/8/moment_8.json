@@ -1,0 +1,26 @@
+{
+    "id": 8,
+    "parent_participant_id": 1,
+    "rating": 3,
+    "text": "Testing new file path again",
+    "gps": {
+        "long": 0.43,
+        "lat": -0.005
+    },
+    "added_ts": "2018-07-19T17:22:36.673859",
+    "modified_ts": "2018-07-19T17:22:36.673868",
+    "mark_for_download": true,
+    "tags": [],
+    "comments": [
+        {
+            "id": 14,
+            "parent_moment": 8,
+            "author_id": 1,
+            "consultant_author": false,
+            "display_name": "Participant 1",
+            "text": "Here is a comment for Moment 8",
+            "ts": "2018-07-21T14:30:02.190112"
+        }
+    ],
+    "project_id": 1
+}

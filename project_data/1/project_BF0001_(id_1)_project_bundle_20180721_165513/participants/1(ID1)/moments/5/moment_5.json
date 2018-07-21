@@ -1,0 +1,39 @@
+{
+    "id": 5,
+    "parent_participant_id": 1,
+    "rating": 3,
+    "text": "Added from console again",
+    "gps": {
+        "long": null,
+        "lat": null
+    },
+    "added_ts": "2018-07-19T16:52:23.788124",
+    "modified_ts": "2018-07-19T16:52:23.788132",
+    "mark_for_download": true,
+    "tags": [
+        "checkout",
+        "confused",
+        "coffee"
+    ],
+    "comments": [
+        {
+            "id": 12,
+            "parent_moment": 5,
+            "author_id": 1,
+            "consultant_author": false,
+            "display_name": "Participant 1",
+            "text": "Hello!",
+            "ts": "2018-07-19T17:12:10.694527"
+        },
+        {
+            "id": 13,
+            "parent_moment": 5,
+            "author_id": 1,
+            "consultant_author": false,
+            "display_name": "Participant 1",
+            "text": "This is another comment for Moment 5",
+            "ts": "2018-07-21T14:29:15.648274"
+        }
+    ],
+    "project_id": 1
+}

@@ -1,4 +1,4 @@
-import sqlite3, json, uuid, dateutil.parser, random, os, shutil
+import sqlite3, json, uuid, dateutil.parser, random, os, shutil, csv
 from flask import g
 from cxt_app import app
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -473,7 +473,7 @@ class Participant:
             raise ParticipantNotFoundError("Participant ID must be an integer.")
 
         db = DB.get_db()
-        row = db.execute("SELECT project, within_project_num, display_name, active, last_activity_ts, description, login_url, pin FROM Participant WHERE id=?", [str(self.id)]).fetchone()
+        row = db.execute("SELECT project, within_project_num, display_name, active, last_activity_ts, description, login_url, pin, download_bundle_path FROM Participant WHERE id=?", [str(self.id)]).fetchone()
 
         if row:
             self.__project_id = int(row['project'])
@@ -484,6 +484,7 @@ class Participant:
             self.__description = row['description']
             self.__login_URL = row['login_url']
             self.__pin = row['pin']
+            self.__download_bundle_path = row['download_bundle_path']
             self.__moments = []
 
         else:
@@ -505,6 +506,10 @@ class Participant:
 
     def refresh_moments(self):
         self.__moments = Moment.get_moments_for_participant(self.id)
+
+    @property
+    def download_bundle_path(self):
+        return self.__download_bundle_path
 
     @property
     def within_project_number(self):
@@ -621,9 +626,9 @@ class Participant:
     def update_in_db(self):
 
         db = DB.get_db()
-        db.execute("UPDATE Participant SET within_project_num=?, display_name=?, active=?, last_activity_ts=?, description=?, login_url=?, pin=? WHERE id=?",
+        db.execute("UPDATE Participant SET within_project_num=?, display_name=?, active=?, last_activity_ts=?, description=?, login_url=?, pin=?, download_bundle_path=? WHERE id=?",
                    [self.within_project_number, self.display_name, str(int(self.active)), datetime.isoformat(self.last_activity_ts),
-                    self.description, self.login_url, self.pin, self.id])
+                    self.description, self.login_url, self.pin, self.download_bundle_path, self.id])
         db.commit()
         return Participant(self.id)
 
@@ -677,9 +682,9 @@ class Participant:
         login_url = Participant.get_random_login_url()
         pin = Participant.get_random_pin()
 
-        cur = db.execute("INSERT INTO Participant VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        cur = db.execute("INSERT INTO Participant VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?,?)",
                          [None, str(project_id), str(next_within_project_num), display_name, str(int(active)),
-                          last_activity_ts, description, login_url, pin])
+                          last_activity_ts, description, login_url, pin, None])
         db.commit()
         new_id = int(cur.lastrowid)
         return Participant(new_id)
@@ -729,6 +734,109 @@ class Participant:
 
         return ps
 
+    def generate_download_bundle(self, generate_data_files=False, ignore_moment_flag=False, participant_zip=False):
+
+        generate_data_files = True
+
+        # path_to_participant_bundle = os.path.join(app.config['TEMP_FOLDER'], "project_{}_(id_{})".format(Project(self.project_id).bf_code, self.project_id), "participant_data","participant_{}_(within_project_number_{}_display_name_{})".format(self.id, self.within_project_number, self.display_name))
+
+        path_to_participant_bundle = os.path.join(app.config['TEMP_FOLDER'], "projects", str(self.project_id),"participants", "{}(ID{})".format(self.within_project_number,self.id))
+
+
+        os.makedirs(path_to_participant_bundle, exist_ok=True)
+
+        if generate_data_files or participant_zip:
+
+            # Create participant data JSON and CSV
+
+            # Scrub data that we don't want included (login URL and PIN)
+            d = self.to_dict()
+            del d['pin']
+            del d['login_url']
+            del d['download_bundle_path']
+
+            with open(os.path.join(path_to_participant_bundle, "participant_{}.json".format(self.id)), "w") as json_file:
+                json_file.write(json.dumps(d, indent=4))
+
+            with open(os.path.join(path_to_participant_bundle, "participant_{}.csv".format(self.id)), "w") as csv_file:
+                csv_writer = csv.DictWriter(csv_file, d.keys())
+                csv_writer.writeheader()
+                csv_writer.writerow(d)
+
+        # For each moment, generate download bundle
+
+        for m in self.moments:
+            if ignore_moment_flag:
+                m.generate_download_bundle(generate_data_files)
+            else:
+                if m.mark_for_download:
+                    m.generate_download_bundle(generate_data_files)
+
+        if participant_zip:
+
+            # If a zip archive already exists, remove it
+
+            try:
+
+                participant_zip_path = os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(self.project_id),
+                                            str(self.id))
+
+                # for file in os.listdir(moment_zip_path):
+                #     if file.endswith(".zip"):
+                #         os.remove(os.path.join(moment_zip_path, file))
+
+                os.remove(os.path.join(participant_zip_path, self.download_bundle_path))
+
+            except:
+                pass
+
+
+            # Create archive of this moment, move it to appropriate moment_data folder and return path to download it
+
+            now = datetime.utcnow()
+
+            zip_file_name = "project_{}_participant_{}_{}{}{}_{}{}{}.zip".format(Project(self.project_id).bf_code,
+                                                                            self.id,
+                                                                            now.year,
+                                                                            str(now.month).zfill(2),
+                                                                            str(now.day).zfill(2),
+                                                                            str(now.hour).zfill(2),
+                                                                            str(now.minute).zfill(2),
+                                                                            str(now.second).zfill(2))
+
+            zip_path = os.path.join(app.config['TEMP_FOLDER'], zip_file_name.rstrip(".zip"))
+
+            shutil.make_archive(zip_path, "zip", root_dir=path_to_participant_bundle)
+
+            # Remove temporary files
+
+            shutil.rmtree(path_to_participant_bundle, ignore_errors=True)
+
+            # Move ZIP from temp folder to relevant project_data subfolder
+
+            new_zip_path = os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(self.project_id), str(self.id))
+
+            os.makedirs(new_zip_path, exist_ok=True)
+
+            shutil.move(zip_path + ".zip", new_zip_path)
+
+            self.__download_bundle_path = zip_file_name
+
+            try:
+                self.update_in_db()
+
+            except Exception as e:
+                DB.get_db().rollback()
+                raise e
+
+            # Return path to zip archive
+
+            return os.path.join(new_zip_path, zip_file_name)
+
+        else:
+            return path_to_participant_bundle
+
+
     def to_dict(self):
         return {
             "id": self.id,
@@ -736,10 +844,11 @@ class Participant:
             "within_project_number": self.within_project_number,
             "display_name": self.display_name,
             "active": self.active,
-            "last_activity_is": datetime.isoformat(self.last_activity_ts),
+            "last_activity_ts": datetime.isoformat(self.last_activity_ts),
             "description": self.description,
             "login_url": self.login_url,
-            "pin": self.pin
+            "pin": self.pin,
+            "download_bundle_path": self.download_bundle_path
         }
 
     def to_json(self):
@@ -778,7 +887,7 @@ class Project:
 
         db = DB.get_db()
 
-        project_details = db.execute("SELECT Project.bf_code, Project.client, Project.title, Project.project_type, Project.active, Project.start_ts, Project.last_activity_ts FROM Project WHERE Project.id=?", [self.__id]).fetchone()
+        project_details = db.execute("SELECT Project.bf_code, Project.client, Project.title, Project.project_type, Project.active, Project.start_ts, Project.last_activity_ts, Project.download_bundle_path FROM Project WHERE Project.id=?", [self.__id]).fetchone()
 
         if not project_details:
             raise ProjectNotFound("No project found with ID {}".format(id))
@@ -790,6 +899,7 @@ class Project:
         self.__active = 1 == project_details['active']
         self.__start_ts = dateutil.parser.parse(project_details['start_ts'])
         self.__last_activity_ts = dateutil.parser.parse(project_details['last_activity_ts'])
+        self.__download_bundle_path = project_details['download_bundle_path']
         self.__consultants = []
         self.__participants = []
         self.__tags = []
@@ -945,6 +1055,17 @@ class Project:
         # db.execute("UPDATE Project SET last_activity_ts=? WHERE id=?", [datetime.isoformat(self.last_activity_ts), self.id])
         # db.commit()
 
+    @property
+    def download_bundle_path(self):
+        return self.__download_bundle_path
+
+    def refresh_download_bundle_path(self):
+
+        project_row = DB.get_db().execute("SELECT download_bundle_path FROM Project WHERE id=?", [self.id]).fetchone()
+
+        if project_row:
+            self.__download_bundle_path = project_row['download_bundle_path']
+
     @staticmethod
     def bf_code_is_valid(bf:str):
 
@@ -1084,7 +1205,7 @@ class Project:
     def update_in_db(self):
 
         db = DB.get_db()
-        db.execute("UPDATE Project SET bf_code=?, client=?, title=?, project_type=?, active=?, start_ts=?, last_activity_ts=? WHERE id=?",[self.bf_code, self.client_id, self.title, self.project_type_id, str(int(self.active)), datetime.isoformat(self.start_ts), datetime.isoformat(self.last_activity_ts),self.id])
+        db.execute("UPDATE Project SET bf_code=?, client=?, title=?, project_type=?, active=?, start_ts=?, last_activity_ts=?, download_bundle_path=? WHERE id=?",[self.bf_code, self.client_id, self.title, self.project_type_id, str(int(self.active)), datetime.isoformat(self.start_ts), datetime.isoformat(self.last_activity_ts), self.download_bundle_path, self.id])
         db.commit()
         return Project(self.id)
 
@@ -1192,7 +1313,7 @@ class Project:
             raise ProjectBFCodeError("Project BF code {} is already in use.".format(bf_code))
 
         db = DB.get_db()
-        cur = db.execute("INSERT INTO Project VALUES (?, ?, ?, ?, ?, ?, ?, ?)", [None, bf_code, client_id, title, project_type_id, str(int(active)), datetime.isoformat(start_ts), datetime.isoformat(datetime.utcnow())])
+        cur = db.execute("INSERT INTO Project VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", [None, bf_code, client_id, title, project_type_id, str(int(active)), datetime.isoformat(start_ts), datetime.isoformat(datetime.utcnow()), None])
         db.commit()
         new_id = cur.lastrowid
         return Project(int(new_id))
@@ -1209,6 +1330,159 @@ class Project:
 
         return json.dumps(project_list, indent=4)
 
+    def generate_download_bundle(self, ignore_moment_flag=False):
+
+        # path_to_project_bundle = os.path.join(app.config['TEMP_FOLDER'], "project_{}_(id_{})".format(self.bf_code, self.id))
+
+        path_to_project_bundle = os.path.join(app.config['TEMP_FOLDER'], "projects", str(self.id))
+
+        os.makedirs(path_to_project_bundle, exist_ok=True)
+
+        # Create JSON file for this project
+
+        d = self.to_dict()
+        del d['download_bundle_path']
+
+        d['consultants'] = [c.to_dict() for c in self.consultants]
+        for x in d['consultants']:
+            del x['projects']
+
+        d['participants'] = [p.to_dict() for p in self.participants]
+        for x in d['participants']:
+            del x['pin']
+            del x['login_url']
+            del x['project_id']
+            x['moments'] = [m.to_dict() for m in Participant(int(x['id'])).moments]
+            for m in x['moments']:
+                del m['media']
+
+        with open(os.path.join(path_to_project_bundle, "project_{}_(id_{}).json".format(self.bf_code, self.id)), "w") as json_file:
+            json_file.write(json.dumps(d, indent=4))
+
+        # Create Project, Participants, Moments, Comments CSV files for this project
+
+        # Project CSV
+        with open(os.path.join(path_to_project_bundle, "project_{}_(id_{}).csv".format(self.bf_code, self.id)), "w") as project_csv_file:
+            project_csv_file.write("id,project_code,title,project_type,start_ts,last_activity_ts,client_id,client_name,client_contact_name,client_contact_email,client_contact_phone\n")
+            project_csv_file.write("{},{},{},{},{},{},{},{},{},{},{}\n".format(self.id, self.bf_code,self.title,self.project_type_description,self.start_ts,self.last_activity_ts,self.client_id, self.client.description, self.client.contact_name,self.client.contact_email, self.client.contact_phone))
+
+        # Participant CSV
+
+        ps = [p.to_dict() for p in self.participants]
+
+        for p in ps:
+            del p['pin']
+            del p['login_url']
+            del p['download_bundle_path']
+
+        if len(ps) > 0:
+
+            with open(os.path.join(path_to_project_bundle, "project_{}_(id_{})_participants.csv".format(self.bf_code, self.id)), "w") as participant_csv_file:
+                csv_writer = csv.DictWriter(participant_csv_file, ps[0].keys())
+                csv_writer.writeheader()
+                csv_writer.writerows(ps)
+
+        # Moment CSV
+
+        ms = []
+
+        for p in self.participants:
+            for m in p.moments:
+                ms.append(m.to_dict())
+
+        for m in ms:
+            del m['media']
+            del m['comments']
+            del m['download_bundle_path']
+            m['gps_long'] = m['gps']['long'] or None
+            m['gps_lat'] = m['gps']['lat'] or None
+            del m['gps']
+            tag_string = ""
+            for t in m['tags']:
+                tag_string += "{};".format(t)
+            if len(tag_string) > 0:
+                tag_string = tag_string.rstrip(";")
+            m['tags'] = tag_string
+            m['project_id'] = self.id
+            m['participant_within_proj_num'] = Participant(m['parent_participant_id']).within_project_number
+
+        if len(ms) > 0:
+            with open(os.path.join(path_to_project_bundle, "project_{}_(id_{})_moments.csv".format(self.bf_code, self.id)), "w") as moment_csv_file:
+                csv_writer = csv.DictWriter(moment_csv_file, ms[0].keys())
+                csv_writer.writeheader()
+                csv_writer.writerows(ms)
+
+        # Comments CSV
+
+        cs = []
+
+        for p in self.participants:
+            participant_moment_comments = [MomentComment.get_comments_for_moment(m.id) for m in p.moments]
+            for moment_comments in participant_moment_comments:
+                for comment in moment_comments:
+                    cs.append(comment.to_dict())
+
+        for comment in cs:
+            comment['author_type'] = 'consultant' if comment['consultant_author'] else 'participant'
+            comment['project_id'] = self.id
+
+        if len(cs) > 0:
+            with open(os.path.join(path_to_project_bundle, "project_{}_(id_{})_moment_comments.csv".format(self.bf_code, self.id)), "w") as comments_csv_file:
+                csv_writer = csv.DictWriter(comments_csv_file, cs[0].keys())
+                csv_writer.writeheader()
+                csv_writer.writerows(cs)
+
+        # For each participant, for each moment, generate their download bundle
+        for p in self.participants:
+            p.generate_download_bundle(ignore_moment_flag)
+
+        # Create ZIP archive for project bundle
+
+        # If a zip archive already exists, remove it
+
+        try:
+
+            project_zip_path = os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(self.id))
+
+            for file in os.listdir(project_zip_path):
+                if file.endswith(".zip"):
+                    os.remove(os.path.join(project_zip_path, file))
+
+        except:
+            pass
+
+        now = datetime.utcnow()
+
+        zip_file_name = "project_{}_(id_{})_project_bundle_{}{}{}_{}{}{}.zip".format(self.bf_code, self.id, now.year, str(now.month).zfill(2), str(now.day).zfill(2), str(now.hour).zfill(2), str(now.minute).zfill(2), str(now.second).zfill(2))
+
+        zip_path = os.path.join(app.config['TEMP_FOLDER'],zip_file_name.rstrip(".zip"))
+
+        shutil.make_archive(zip_path, "zip", root_dir=path_to_project_bundle)
+
+        # Remove temporary files
+
+        shutil.rmtree(path_to_project_bundle, ignore_errors=True)
+
+        # Move ZIP from temp folder to relevant project_data subfolder
+
+        new_zip_path = os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(self.id))
+
+        os.makedirs(new_zip_path, exist_ok=True)
+
+        shutil.move(zip_path + ".zip", new_zip_path)
+
+        try:
+            self.__download_bundle_path = zip_file_name
+            self.update_last_activity_ts()
+            self.update_in_db()
+
+        except Exception as e:
+            DB.get_db().rollback()
+            raise e
+
+        # Return path to zip archive
+
+        return os.path.join(new_zip_path, zip_file_name)
 
     def to_dict(self):
 
@@ -1232,7 +1506,8 @@ class Project:
             "start_ts": datetime.isoformat(self.start_ts),
             "last_activity_ts": datetime.isoformat(self.last_activity_ts),
             "consultants": consultant_ids_list,
-            "participants": participant_ids_list
+            "participants": participant_ids_list,
+            "download_bundle_path": self.download_bundle_path
         }
 
     def to_json(self):
@@ -1255,7 +1530,7 @@ class Moment:
         except:
             MomentNotFoundError("Moment ID must be an integer.")
 
-        moment_details = DB.get_db().execute("SELECT participant, rating, text, gps_long, gps_lat, added_ts, modified_ts, mark_for_download FROM Moment WHERE id=?", [self.__id]).fetchone()
+        moment_details = DB.get_db().execute("SELECT participant, rating, text, gps_long, gps_lat, added_ts, modified_ts, mark_for_download, download_bundle_path FROM Moment WHERE id=?", [self.__id]).fetchone()
 
         if not moment_details:
             raise MomentNotFoundError("No Moment found with ID {}".format(id))
@@ -1267,6 +1542,7 @@ class Moment:
         self.__added_ts = dateutil.parser.parse(moment_details['added_ts'])
         self.__modified_ts = dateutil.parser.parse(moment_details['modified_ts'])
         self.__mark_for_download = 1 == int(moment_details['mark_for_download']) if moment_details['mark_for_download'] else False
+        self.__download_bundle_path = moment_details['download_bundle_path']
         self.__media = []
         self.__comments = []
         self.__tags = []
@@ -1288,7 +1564,7 @@ class Moment:
     @property
     def parent_participant(self):
         return Participant(self.parent_participant_id)
-    
+
     @property
     def rating(self):
         return self.__rating
@@ -1337,6 +1613,10 @@ class Moment:
         self.__mark_for_download = value
 
     @property
+    def download_bundle_path(self):
+        return self.__download_bundle_path
+
+    @property
     def comments(self):
         if len(self.__comments) == 0:
             self.refresh_comments()
@@ -1374,7 +1654,7 @@ class Moment:
     def update_in_db(self):
 
         db = DB.get_db()
-        db.execute("UPDATE Moment SET rating=?, text=?, gps_long=?, gps_lat=?, modified_ts=?, mark_for_download=? WHERE id=?", [self.rating, self.text, self.gps['long'], self.gps['lat'], self.modified_ts, str(int(self.mark_for_download)), self.id])
+        db.execute("UPDATE Moment SET rating=?, text=?, gps_long=?, gps_lat=?, modified_ts=?, mark_for_download=?, download_bundle_path=? WHERE id=?", [self.rating, self.text, self.gps['long'], self.gps['lat'], self.modified_ts, str(int(self.mark_for_download)), self.download_bundle_path, self.id])
         db.commit()
         return Moment(self.id)
 
@@ -1472,7 +1752,7 @@ class Moment:
 
             # Add new moment data to Moment table in DB
             db = DB.get_db()
-            cur = db.execute("INSERT INTO Moment VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",[None, participant_id, rating, text, gps_long, gps_lat, datetime.isoformat(datetime.utcnow()), datetime.isoformat(datetime.utcnow()), 0])
+            cur = db.execute("INSERT INTO Moment VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",[None, participant_id, rating, text, gps_long, gps_lat, datetime.isoformat(datetime.utcnow()), datetime.isoformat(datetime.utcnow()), 0, None])
             new_moment_id = cur.lastrowid
 
             # check filenames are for acceptable file types and add if OK:
@@ -1518,7 +1798,8 @@ class Moment:
             "mark_for_download": self.mark_for_download,
             "tags": self.tags,
             "media": moment_media_dict_list,
-            "comments": moment_comments_dict_list
+            "comments": moment_comments_dict_list,
+            "download_bundle_path": self.download_bundle_path
         }
 
     def to_json(self):
@@ -1535,6 +1816,134 @@ class Moment:
 
     def get_comments_json(self):
         return MomentComment.get_comments_for_moment_json(self.id)
+
+    def generate_download_bundle(self, generate_data_files=False, moment_zip=False):
+
+        # create directory tree for downloadable bundle to exist in
+
+        # path_to_moment_bundle  = os.path.join(app.config['TEMP_FOLDER'], "project_{}_(id_{})".format(Project(self.parent_participant.project_id).bf_code, self.parent_participant.project_id), "participant_data","participant_{}_(within_project_number_{}_display_name_{})".format(self.parent_participant_id, self.parent_participant.within_project_number, self.parent_participant.display_name), "moment_{}".format(self.id))
+
+        path_to_moment_bundle = os.path.join(app.config['TEMP_FOLDER'], "projects", str(self.parent_participant.project_id),"participants", "{}(ID{})".format(self.parent_participant.within_project_number, self.parent_participant_id), "moments", str(self.id))
+
+        os.makedirs(path_to_moment_bundle, exist_ok=True)
+
+        if generate_data_files or moment_zip:
+
+            # Within moment folder we need moment data as JSON / CSV
+
+            # Scrub unnecessary data from Moment dictionary before writing to file:
+
+            d = self.to_dict()
+            del d['media']
+            del d['download_bundle_path']
+            d['project_id'] = self.parent_participant.project_id
+
+            with open(os.path.join(path_to_moment_bundle, "moment_{}.json".format(self.id)), "w") as json_file:
+                json_file.write(json.dumps(d, indent=4))
+
+            # Separate out comments and tags into own dictionaries for writing to own csv files
+
+            comments = d['comments']
+            tags = d['tags']
+            del d['comments']
+            del d['tags']
+
+            # Convert tag list into format for including in a CSV column
+
+            tag_string = ""
+            for t in tags:
+                tag_string += "{};".format(t)
+            if len(tag_string) > 0:
+                tag_string = tag_string.rstrip(";")
+
+            # Write Moment CSV
+
+            with open(os.path.join(path_to_moment_bundle, "moment_{}.csv".format(self.id)), "w") as csv_file:
+                csv_file.write("id,project_id,parent_participant_id,rating,text,gps_long,gps_lat,added_ts,modified_ts,tags\n")
+                csv_file.write("{},{},{},{},{},{},{},{},{},{}\n".format(d['id'], d['project_id'],d['parent_participant_id'], d['rating'], d['text'], d['gps']['long'], d['gps']['lat'], d['added_ts'], d['modified_ts'],tag_string))
+
+            # Write comment CSV
+
+            if len(comments) > 0:
+
+                with open(os.path.join(path_to_moment_bundle, "moment_{}_comments.csv".format(self.id)), "w") as csv_file:
+                    writer = csv.DictWriter(csv_file, comments[0].keys())
+                    writer.writeheader()
+                    for c in comments:
+                        writer.writerow(c)
+
+        # For each moment media, create a sub folder for its data and copy data into the sub folder
+
+        path_to_moment_data = os.path.join(path_to_moment_bundle,"moment_media")
+
+        for m in self.media:
+            this_moment_path = os.path.join(path_to_moment_data, str(m.id))
+            os.makedirs(this_moment_path, exist_ok=True)
+            shutil.copy(m.path_original, this_moment_path)
+
+        if moment_zip:
+
+            # If a zip archive already exists, remove it
+
+            try:
+
+                moment_zip_path = os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(self.parent_participant.project_id),
+                                            str(self.parent_participant_id), str(self.id))
+
+                # for file in os.listdir(moment_zip_path):
+                #     if file.endswith(".zip"):
+                #         os.remove(os.path.join(moment_zip_path, file))
+
+                os.remove(os.path.join(moment_zip_path, self.download_bundle_path))
+
+            except:
+                pass
+
+
+            # Create archive of this moment, move it to appropriate moment_data folder and return path to download it
+
+            now = datetime.utcnow()
+
+            zip_file_name = "project_{}_moment_{}_{}{}{}_{}{}{}.zip".format(Project(self.parent_participant.project_id).bf_code,
+                                                                            self.id,
+                                                                            now.year,
+                                                                            str(now.month).zfill(2),
+                                                                            str(now.day).zfill(2),
+                                                                            str(now.hour).zfill(2),
+                                                                            str(now.minute).zfill(2),
+                                                                            str(now.second).zfill(2))
+
+            zip_path = os.path.join(app.config['TEMP_FOLDER'], zip_file_name.rstrip(".zip"))
+
+            shutil.make_archive(zip_path, "zip", root_dir=path_to_moment_bundle)
+
+            # Remove temporary files
+
+            shutil.rmtree(path_to_moment_bundle, ignore_errors=True)
+
+            # Move ZIP from temp folder to relevant project_data subfolder
+
+            new_zip_path = os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(self.parent_participant.project_id), str(self.parent_participant_id), str(self.id))
+
+            os.makedirs(new_zip_path, exist_ok=True)
+
+            shutil.move(zip_path + ".zip", new_zip_path)
+
+            self.__download_bundle_path = zip_file_name
+
+            try:
+                self.update_in_db()
+
+            except Exception as e:
+                DB.get_db().rollback()
+                raise e
+
+            # Return path to zip archive
+
+            return os.path.join(new_zip_path, zip_file_name)
+
+        else:
+            return path_to_moment_bundle
 
     @staticmethod
     def get_moments_for_participant(participant_id:int):
