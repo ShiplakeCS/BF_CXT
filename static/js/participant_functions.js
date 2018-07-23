@@ -1,4 +1,87 @@
-function load_moments(p_id) {
+function load_participant_moments(p_id, since_moment_id) {
+
+    var xhr = new XMLHttpRequest();
+
+    xhr.onload = function () {
+
+        // If the response to the request is OK
+        if (xhr.status === 200) {
+            // Get collection of moments
+            moments = JSON.parse(xhr.responseText);
+
+            // for each moment, render a moment card
+
+            for (var i = 0; i < moments.length; i++) {
+
+                moment_html = "";
+
+                // get current moment
+                m = moments[i];
+
+                moment_html = '<div class="card mb-4" id="moment_x">';
+
+                // generate moment card header
+
+                modified_date = new Date(m.modified_ts);
+
+                moment_html += '<div class="card-header small"> ' +
+                    '<span class="float-left">' + modified_date.toLocaleDateString() + ' ' + modified_date.getHours() + ':' + modified_date.getMinutes() +  '</span>' +
+                    '<span class="float-right text-muted" style="font-family:sans-serif">';
+
+                for (var r = 0; r < m.rating; r++) {
+                    moment_html += '&#x2605;';
+                }
+
+                for (var r = 0; r < (5 - m.rating); r++) {
+                    moment_html += '&#x2606;';
+                }
+
+                moment_html += '</span>' +
+                    '</div>';
+
+                // generate moment card body
+
+                moment_html += '<div class="card-body">' +
+                    '<p class="card-text">' + m.text + '</p>';
+
+                //TODO: Replace with dynamically loaded moment media for each one found in m.media
+                for (var media_num = 0; media_num < m.media.length; media_num++) {
+                    moment_html += '<a href="/api/participants/'+ p_id + '/moments/'+ m.id + '/media/' + m.media[media_num].id + '/original" aria-label="original thumbnail"><img class="card-img-bottom mb-2" src="/api/participants/'+ p_id +'/moments/'+ m.id + '/media/' + m.media[media_num].id + '/large" alt="Moment image" style="width:100%"></a>';
+                }
+
+                if (m.gps.long != null) {
+                    moment_html += '<span class="small text-muted">&#x1F4CD; Location captured</span>';
+                }
+                moment_html += '</div>';
+
+                // generate moment card footer as placeholder for comments
+
+                moment_html += '<div class="card-footer">' +
+                    '<button data-toggle="collapse" data-target="#moment_' + m.id + '_comments">' +
+                    'Comments (count)</button>' +
+                    '<div id="moment_' + m.id + '_comments" class="collapse">'+
+                    '</div>'+
+                    '</div>';
+
+                moment_html += '</div>';
+                // append moment to moments div
+                $('#moments').append(moment_html);
+
+            }
+
+
+        }
+
+    }
+
+    xhr.open('GET', '/api/participants/' + p_id + '/moments/since/' + since_moment_id, true);
+
+    xhr.send(null);
+
+}
+
+
+function load_moments_old(p_id) {
     // To get new moments for participant moment page
     var xhr = new XMLHttpRequest();
     xhr.onload = function () {
@@ -43,7 +126,7 @@ function load_moments(p_id) {
             document.getElementById('moments').innerHTML = content;
         }
     };
-    xhr.open('GET', '/api/participants/'+ p_id + '/moments/since/0', true);
+    xhr.open('GET', '/api/participants/' + p_id + '/moments/since/0', true);
 
     xhr.send(null);
 }

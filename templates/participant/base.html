@@ -13,7 +13,7 @@
     {% endif %}
 
 </head>
-<body>
+<body {% if onload %}onload="{{ onload }}"{% endif %}>
 
 <nav class="navbar navbar-expand-md bg-dark navbar-dark fixed-top">
     <!-- see https://www.w3schools.com/bootstrap4/bootstrap_navbar.asp for more info on nav bars in Bootstrap 4 -->

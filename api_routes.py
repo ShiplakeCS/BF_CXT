@@ -1,4 +1,4 @@
-from flask import session, abort, request
+from flask import session, abort, request, send_file, send_from_directory
 from datetime import datetime
 from cxt_app import app, db_models
 import json
@@ -53,6 +53,7 @@ def get_consultants():
     return db_models.Consultant.get_all_consultants_json()
 
 
+
 ## Participant routes
 
 @app.route('/api/participants/<int:id>', methods=['GET'])
@@ -77,6 +78,25 @@ def get_participant_moments_since_id(p_id, m_id):
 
     if auth_consultant() or auth_participant(p_id):
         return db_models.Moment.get_moments_for_participant_json(int(p_id), int(m_id))
+
+    else:
+        abort(401)
+
+@app.route('/api/participants/<p_id>/moments/<moment_id>/media/<media_id>/<size>')
+def get_participant_moment_media(p_id, moment_id, media_id, size):
+    if auth_consultant() or auth_participant(p_id):
+
+        media = db_models.MomentMedia(media_id)
+
+        if media.parent_moment_id != int(moment_id):
+            abort(404)
+        if size == 'original':
+            return send_file(media.path_original, attachment_filename=media.original_filename)
+        elif size == 'small':
+            return send_file(media.path_small_thumb, attachment_filename=media.original_filename)
+        elif size == 'large':
+            return send_file(media.path_large_thumb, attachment_filename=media.original_filename)
+
 
     else:
         abort(401)

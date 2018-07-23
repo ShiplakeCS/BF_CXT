@@ -2104,11 +2104,11 @@ class MomentMedia:
 
     @property
     def path_small_thumb(self):
-        return str(self.path_original.split(".")[0]) +  "_thumb_small.png"
+        return str(self.path_original.split(".")[0]) +  "_thumb_small.jpg"
 
     @property
     def path_large_thumb(self):
-        return str(self.path_original.split(".")[0]) +  "_thumb_large.png"
+        return str(self.path_original.split(".")[0]) +  "_thumb_large.jpg"
 
     @property
     def id(self):
