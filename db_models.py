@@ -658,9 +658,10 @@ class Participant:
             db.rollback()
             raise e
 
-    def add_moment(self):
-        #TODO: Write code to add new moment to database
-        pass
+    def add_moment(self, rating, text, gps_long, gps_lat, file_names=[]):
+        new_moment = Moment.add_new_to_db(self.id, rating, text, gps_long, gps_lat, file_names)
+        self.refresh_moments()
+        return new_moment
 
     @staticmethod
     def add_new_to_db(project_id, display_name, active, description):
@@ -785,7 +786,7 @@ class Participant:
                 #     if file.endswith(".zip"):
                 #         os.remove(os.path.join(moment_zip_path, file))
 
-                os.remove(os.path.join(participant_zip_path, self.download_bundle_path))
+                os.remove(os.path.join(app.config['DOWNLOAD_BUNDLES_FOLDER'], self.download_bundle_path))
 
             except:
                 pass
@@ -818,7 +819,7 @@ class Participant:
 
             os.makedirs(new_zip_path, exist_ok=True)
 
-            shutil.move(zip_path + ".zip", new_zip_path)
+            shutil.move(zip_path + ".zip", app.config['DOWNLOAD_BUNDLES_FOLDER'])
 
             self.__download_bundle_path = zip_file_name
 
@@ -831,7 +832,7 @@ class Participant:
 
             # Return path to zip archive
 
-            return os.path.join(new_zip_path, zip_file_name)
+            return os.path.join(app.config['DOWNLOAD_BUNDLES_FOLDER'], zip_file_name)
 
         else:
             return path_to_participant_bundle
@@ -1434,22 +1435,18 @@ class Project:
 
         # For each participant, for each moment, generate their download bundle
         for p in self.participants:
-            p.generate_download_bundle(ignore_moment_flag)
+            p.generate_download_bundle(ignore_moment_flag=ignore_moment_flag)
 
         # Create ZIP archive for project bundle
 
         # If a zip archive already exists, remove it
 
-        try:
+        if self.download_bundle_path:
+            try:
+                os.remove(os.path.join(app.config['DOWNLOAD_BUNDLES_FOLDER'], self.download_bundle_path))
 
-            project_zip_path = os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(self.id))
-
-            for file in os.listdir(project_zip_path):
-                if file.endswith(".zip"):
-                    os.remove(os.path.join(project_zip_path, file))
-
-        except:
-            pass
+            except:
+                pass
 
         now = datetime.utcnow()
 
@@ -1469,7 +1466,7 @@ class Project:
 
         os.makedirs(new_zip_path, exist_ok=True)
 
-        shutil.move(zip_path + ".zip", new_zip_path)
+        shutil.move(zip_path + ".zip", app.config['DOWNLOAD_BUNDLES_FOLDER'])
 
         try:
             self.__download_bundle_path = zip_file_name
@@ -1482,7 +1479,7 @@ class Project:
 
         # Return path to zip archive
 
-        return os.path.join(new_zip_path, zip_file_name)
+        return os.path.join(app.config['DOWNLOAD_BUNDLES_FOLDER'], zip_file_name)
 
     def to_dict(self):
 
@@ -1738,6 +1735,12 @@ class Moment:
     @staticmethod
     def add_new_to_db(participant_id:int, rating:int, text:str, gps_long:float, gps_lat:float, file_names:[]):
 
+        # If a single filename is provided, rather than a list then simply convert to a list of one item
+        if file_names and type(file_names) != []:
+
+                file_names = [file_names]
+
+
         try:
             rating = int(rating)
             if rating < 1 or rating > 5:
@@ -1752,19 +1755,20 @@ class Moment:
 
             # Add new moment data to Moment table in DB
             db = DB.get_db()
-            cur = db.execute("INSERT INTO Moment VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",[None, participant_id, rating, text, gps_long, gps_lat, datetime.isoformat(datetime.utcnow()), datetime.isoformat(datetime.utcnow()), 0, None])
+            cur = db.execute("INSERT INTO Moment VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",[None, participant_id, rating, text, gps_long, gps_lat, datetime.isoformat(datetime.utcnow()), datetime.isoformat(datetime.utcnow()), 1, None])
             new_moment_id = cur.lastrowid
 
             # check filenames are for acceptable file types and add if OK:
-            for fn in file_names:
-                if ".png" in fn or ".jpg" in fn or ".jpeg" in fn:
-                    media_type = "image"
-                elif ".mov" in fn or ".m4v" in fn or ".mp4" in fn:
-                    media_type = "video"
-                else:
-                    raise MomentMediaFormatError("Moment media files must be image (jpg/png or video (mov/mp4/m4v) format.")
+            if file_names:
+                for fn in file_names:
+                    if ".png" in fn or ".jpg" in fn or ".jpeg" in fn:
+                        media_type = "image"
+                    elif ".mov" in fn or ".m4v" in fn or ".mp4" in fn:
+                        media_type = "video"
+                    else:
+                        raise MomentMediaFormatError("Moment media files must be image (jpg/png or video (mov/mp4/m4v) format.")
 
-                MomentMedia.add_new_to_db(new_moment_id, media_type, fn)
+                    MomentMedia.add_new_to_db(new_moment_id, media_type, fn)
 
             db.commit()
             return Moment(new_moment_id)
@@ -1894,7 +1898,7 @@ class Moment:
                 #     if file.endswith(".zip"):
                 #         os.remove(os.path.join(moment_zip_path, file))
 
-                os.remove(os.path.join(moment_zip_path, self.download_bundle_path))
+                os.remove(os.path.join(app.config['DOWNLOAD_BUNDLES_FOLDER'], self.download_bundle_path))
 
             except:
                 pass
@@ -1927,7 +1931,7 @@ class Moment:
 
             os.makedirs(new_zip_path, exist_ok=True)
 
-            shutil.move(zip_path + ".zip", new_zip_path)
+            shutil.move(zip_path + ".zip", app.config['DOWNLOAD_BUNDLES_FOLDER'])
 
             self.__download_bundle_path = zip_file_name
 
@@ -1940,7 +1944,7 @@ class Moment:
 
             # Return path to zip archive
 
-            return os.path.join(new_zip_path, zip_file_name)
+            return os.path.join(app.config['DOWNLOAD_BUNDLES_FOLDER'], zip_file_name)
 
         else:
             return path_to_moment_bundle
@@ -2002,7 +2006,18 @@ class MomentMedia:
     @property
     def media_file_path(self):
         #return os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(self.parent_moment_id), str(self.id))
-        return os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(Moment(self.parent_moment_id).parent_participant.project_id),str(Moment(self.parent_moment_id).parent_participant_id) ,str(self.parent_moment_id), str(self.id))
+        # return os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(Moment(self.parent_moment_id).parent_participant.project_id),str(Moment(self.parent_moment_id).parent_participant_id) ,str(self.parent_moment_id), str(self.id))
+        return os.path.join(
+                app.config['MOMENT_MEDIA_FOLDER'],
+                'projects',
+                str(Moment(self.parent_moment_id).parent_participant.project_id),
+                'participants',
+                str(Moment(self.parent_moment_id).parent_participant_id),
+                'moments',
+                str(self.parent_moment_id),
+                'moment_media',
+                str(self.id)
+            )
 
     @property
     def path_original(self):
@@ -2102,7 +2117,20 @@ class MomentMedia:
 
             # Create folder path for the media
             #media_path = os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(moment_id), str(new_id))
-            media_path = os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(Moment(moment_id).parent_participant.project_id), str(Moment(moment_id).parent_participant_id), str(moment_id), str(new_id))
+            # media_path = os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(Moment(moment_id).parent_participant.project_id), str(Moment(moment_id).parent_participant_id), str(moment_id), str(new_id))
+
+            media_path = os.path.join(
+                app.config['MOMENT_MEDIA_FOLDER'],
+                'projects',
+                str(Moment(moment_id).parent_participant.project_id),
+                'participants',
+                str(Moment(moment_id).parent_participant_id),
+                'moments',
+                str(moment_id),
+                'moment_media',
+                str(new_id)
+            )
+
             os.makedirs(media_path, exist_ok=True)
 
             # Copy file to proper location
