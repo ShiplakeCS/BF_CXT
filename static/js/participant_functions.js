@@ -25,7 +25,7 @@ function load_participant_moments(p_id, since_moment_id) {
                 modified_date = new Date(m.modified_ts);
 
                 moment_html += '<div class="card-header small"> ' +
-                    '<span class="float-left">' + modified_date.toLocaleDateString() + ' ' + modified_date.getHours() + ':' + modified_date.getMinutes() +  '</span>' +
+                    '<span class="float-left">' + modified_date.toLocaleDateString() + ' ' + modified_date.getHours() + ':' + modified_date.getMinutes() + '</span>' +
                     '<span class="float-right text-muted" style="font-family:sans-serif">';
 
                 for (var r = 0; r < m.rating; r++) {
@@ -46,11 +46,23 @@ function load_participant_moments(p_id, since_moment_id) {
 
                 //TODO: Replace with dynamically loaded moment media for each one found in m.media
                 for (var media_num = 0; media_num < m.media.length; media_num++) {
-                    moment_html += '<a href="/api/participants/'+ p_id + '/moments/'+ m.id + '/media/' + m.media[media_num].id + '/original" aria-label="original thumbnail"><img class="card-img-bottom mb-2" src="/api/participants/'+ p_id +'/moments/'+ m.id + '/media/' + m.media[media_num].id + '/large" alt="Moment image" style="width:100%"></a>';
+
+                    // if image...
+
+                    if (m.media[media_num].media_type == 'image') {
+                        moment_html += '<a href="/api/participants/' + p_id + '/moments/' + m.id + '/media/' + m.media[media_num].id + '/original" aria-label="original thumbnail"><img class="card-img-bottom mb-2" src="/api/participants/' + p_id + '/moments/' + m.id + '/media/' + m.media[media_num].id + '/large" alt="Moment image" style="width:100%"></a>';
+
+                    }
+                    //if video...
+                    else if (m.media[media_num].media_type == 'video') {
+                        moment_html += '<video width="100%" controls><source src="/api/participants/' + p_id + '/moments/' + m.id + '/media/' + m.media[media_num].id + '/original" type="video/mp4"></video>';
+                    }
+
+
                 }
 
-                if (m.gps.long != null) {
-                    moment_html += '<span class="small text-muted">&#x1F4CD; Location captured</span>';
+                if (m.gps.lat != null) {
+                    moment_html += '<a href="https://www.google.com/maps/search/?api=1&query=' + m.gps.lat + ',' + m.gps.long + '" class="small text-muted">&#x1F4CD; Location captured</a>';
                 }
                 moment_html += '</div>';
 
@@ -59,8 +71,8 @@ function load_participant_moments(p_id, since_moment_id) {
                 moment_html += '<div class="card-footer">' +
                     '<button data-toggle="collapse" data-target="#moment_' + m.id + '_comments">' +
                     'Comments (count)</button>' +
-                    '<div id="moment_' + m.id + '_comments" class="collapse">'+
-                    '</div>'+
+                    '<div id="moment_' + m.id + '_comments" class="collapse">' +
+                    '</div>' +
                     '</div>';
 
                 moment_html += '</div>';
