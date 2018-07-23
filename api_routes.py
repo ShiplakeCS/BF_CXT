@@ -72,6 +72,16 @@ def get_participant(id):
         abort(401)
 
 
+@app.route('/api/participants/<p_id>/moments/since/<m_id>')
+def get_participant_moments_since_id(p_id, m_id):
+
+    if auth_consultant() or auth_participant(p_id):
+        return db_models.Moment.get_moments_for_participant_json(int(p_id), int(m_id))
+
+    else:
+        abort(401)
+
+
 ## Project routes
 
 @app.route('/api/projects/', methods=['GET'])

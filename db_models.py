@@ -2029,17 +2029,17 @@ class Moment:
             return path_to_moment_bundle
 
     @staticmethod
-    def get_moments_for_participant(participant_id:int):
+    def get_moments_for_participant(participant_id:int, since_id=0):
         moments_list = []
-        moments_rows = DB.get_db().execute("SELECT id FROM Moment WHERE participant=? ORDER BY id desc ", [participant_id])
+        moments_rows = DB.get_db().execute("SELECT id FROM Moment WHERE participant=? AND id>? ORDER BY id desc ", [participant_id, since_id])
         for row in moments_rows:
             moments_list.append(Moment(int(row['id'])))
         return moments_list
 
     @staticmethod
-    def get_moments_for_participant_json(participant_id:int):
+    def get_moments_for_participant_json(participant_id:int, since_id=0):
         ms = []
-        for m in Moment.get_moments_for_participant(participant_id):
+        for m in Moment.get_moments_for_participant(participant_id, since_id):
             ms.append(m.to_dict())
         return json.dumps(ms, indent=4)
 

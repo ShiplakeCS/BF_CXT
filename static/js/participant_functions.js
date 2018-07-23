@@ -1,4 +1,4 @@
-function load_moments() {
+function load_moments(p_id) {
     // To get new moments for participant moment page
     var xhr = new XMLHttpRequest();
     xhr.onload = function () {
@@ -43,7 +43,8 @@ function load_moments() {
             document.getElementById('moments').innerHTML = content;
         }
     };
-    xhr.open('GET', '/api/get/moments/1', true);
+    xhr.open('GET', '/api/participants/'+ p_id + '/moments/since/0', true);
+
     xhr.send(null);
 }
 
