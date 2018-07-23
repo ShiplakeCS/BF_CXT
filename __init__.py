@@ -15,6 +15,7 @@ app.config['MOMENT_MEDIA_FOLDER'] = os.path.join(app.root_path, "project_data")
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, "upload_temp")
 app.config['TEMP_FOLDER'] = os.path.join(app.root_path, "temp")
 app.config['DOWNLOAD_BUNDLES_FOLDER'] = os.path.join(app.root_path, "project_data", "download_bundles")
+app.config['SUPPORT_DETAILS'] = {"contact_name": "Bunnyfoot Support", "contact_email": "support@bunnyfoot.com"}
 
 # Add endpoints
 from cxt_app import db_models, participant_routes, consultant_routes, api_routes

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Bunnyfoot Research</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js"></script>
+
+</head>
+<body>
+
+<nav class="navbar navbar-expand-md bg-dark navbar-dark fixed-top">
+    <!-- see https://www.w3schools.com/bootstrap4/bootstrap_navbar.asp for more info on nav bars in Bootstrap 4 -->
+
+    <!-- Brand -->
+    <a class="navbar-brand" href="/p/">Bunnyfoot Research</a>
+
+    {% if not hide_nav_links %}
+
+        <!-- Toggler/collapsibe Button -->
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#collapsibleNavbar">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <!-- Navbar links -->
+        <div class="collapse navbar-collapse" id="collapsibleNavbar">
+            <ul class="navbar-nav">
+                {% if researcher_details %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="mailto:{{ researcher_details.email }}">Contact researcher</a>
+                    </li>
+                {% endif %}
+                {% if support_details %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="mailto:{{ support_details.contact_email }}">Contact support</a>
+                    </li>
+                {% endif %}
+                <li class="nav-item">
+                    <a class="nav-link" href="/p/logout">Logout</a>
+                </li>
+            </ul>
+        </div>
+
+    {% endif %}
+
+</nav>
+
+<div class="container-fluid" style="margin-top:80px; margin-bottom:80px">
+
+    {% block content %}
+    {% endblock %}
+
+</div>
+</body>
+</html>

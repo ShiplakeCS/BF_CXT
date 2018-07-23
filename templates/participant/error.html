@@ -1,0 +1,29 @@
+{% extends 'participant/base.html' %}
+
+{% block content %}
+
+    <header>
+        <h1>Oh no!</h1>
+    </header>
+
+    <div id="error info">
+        {% for message in error_messages %}
+
+            <p>{{ message }}</p>
+
+        {% endfor %}
+
+    </div>
+
+    {% if support_details %}
+        <div id="support_info" class="card bg-light">
+            <div class="card-body">
+                <span class="font-weight-bold">Having trouble?</span><br/>
+                <p>Contact <a
+                        href="mailto:{{ support_details.contact_email }}?subject=Cannot%20log%20into%20Bunnyfoot%20Research%20project%20(BFCXT%20key:%20{{ participant_url_key }})">{{ support_details.contact_name }}</a>
+                    if you are having difficulty accessing this project.</p>
+            </div>
+        </div>
+    {% endif %}
+
+{% endblock %}

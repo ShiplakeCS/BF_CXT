@@ -1,3 +1,0 @@
-id,parent_moment,author_id,consultant_author,display_name,text,ts
-12,5,1,False,Participant 1,Hello!,2018-07-19T17:12:10.694527
-13,5,1,False,Participant 1,This is another comment for Moment 5,2018-07-21T14:29:15.648274

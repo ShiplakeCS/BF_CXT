@@ -1,2 +1,0 @@
-id,project_id,parent_participant_id,rating,text,gps_long,gps_lat,added_ts,modified_ts,tags
-5,1,1,3,Added from console again,None,None,2018-07-19T16:52:23.788124,2018-07-19T16:52:23.788132,checkout;confused;coffee

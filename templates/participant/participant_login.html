@@ -1,0 +1,34 @@
+{% extends '/participant/base.html' %}
+
+{% block content %}
+
+    <header>
+        <h1>Participant login</h1>
+        <p>Please enter your PIN below.</p>
+    </header>
+
+    {% if pin_error %}
+        <div class="alert alert-warning">
+            <strong>Incorrect PIN</strong> The PIN that you entered does not match this project. Please try again.
+        </div>
+    {% endif %}
+
+    <form action="" method="post" class="mb-4">
+        <div class="form-group">
+            <label for="pin">PIN:</label>
+            <input type="password" class="form-control" id="pin" name="pin" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+
+
+    <div id="support_info" class="card bg-light">
+        <div class="card-body">
+            <span class="font-weight-bold">Having trouble?</span><br/>
+            <p>Contact your researcher <a href="mailto:{{ researcher_details.email }}?subject=Problems%20logging%20into%20research%20project%20(key:%20{{ participant_url_key }})">{{ researcher_details.name }}</a> if you do not know your participation PIN.</p>
+        </div>
+    </div>
+
+
+{% endblock %}
+
