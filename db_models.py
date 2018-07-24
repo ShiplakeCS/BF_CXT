@@ -523,7 +523,7 @@ class Participant:
         return self.__moments
 
     def refresh_moments(self):
-        self.__moments = Moment.get_moments_for_participant(self.id)
+        self.__moments = Moment.get_moments_for_participant(self.id)['moments']  # ['moments'] on end to go straight to list of Moment objects and discard metadata
 
     @property
     def download_bundle_path(self):
@@ -2029,19 +2029,107 @@ class Moment:
             return path_to_moment_bundle
 
     @staticmethod
-    def get_moments_for_participant(participant_id:int, since_id=0):
+    def get_moments_for_participant(participant_id:int, min_id=0, max_id=None, limit=None, order='desc'):
+
         moments_list = []
-        moments_rows = DB.get_db().execute("SELECT id FROM Moment WHERE participant=? AND id>? ORDER BY id desc ", [participant_id, since_id])
+
+        range_criteria = ""
+
+        # Sanitize arguments:
+
+        if min_id == 'null':
+            min_id = None
+        if max_id == 'null':
+            max_id = None
+        if limit == 'null':
+            limit = None
+        if order == 'null':
+            order = 'desc'
+
+        if min_id:
+            min_id = int(min_id)
+            if min_id < 0:
+                raise ValueError("Minimum moment ID value must be at least 0.")
+        if max_id:
+            max_id = int(max_id)
+            if max_id < 0:
+                raise ValueError("Maximum moment ID value must be at least 0.")
+        if limit:
+            limit = int(limit)
+        if not order:
+            order = 'desc'
+        if order.lower() not in ['asc', 'desc']:
+            raise ValueError("order parameter value must be 'asc' or 'desc'")
+
+
+        # Build criteria strings to limit results obtained
+        if min_id and max_id:
+            if min_id > max_id:
+                raise ValueError("Minimum moment ID is greater than Maximum moment ID!")
+            range_criteria = " AND id >= {} AND id <= {} ".format(min_id, max_id)
+        elif min_id and not max_id:
+            range_criteria = " AND id >= {} ".format(min_id)
+        elif not min_id and max_id:
+            range_criteria = "AND id <= {} ".format(max_id)
+
+        if order == 'desc':
+            order_by = "ORDER BY id DESC "
+        else:
+            order_by = "ORDER BY id ASC "
+
+        limit_criteria = ""
+        if limit:
+            limit_criteria = "LIMIT {}".format(limit)
+
+        moments_rows = DB.get_db().execute("SELECT id FROM Moment WHERE participant=? {} {} {} ".format(range_criteria, order_by, limit_criteria), [participant_id])
+
         for row in moments_rows:
             moments_list.append(Moment(int(row['id'])))
-        return moments_list
+
+        if len(moments_list) > 0:
+
+            lowest_moment_id = moments_list[-1].id if moments_list[-1].id <= moments_list[0].id else moments_list[0].id
+            highest_moment_id = moments_list[0].id if moments_list[0].id >= moments_list[-1].id else moments_list[-1].id
+
+        else:
+            lowest_moment_id = None
+            highest_moment_id = None
+
+        # Get count of moments below minimum:
+        moments_below = DB.get_db().execute("SELECT count(id) as num FROM Moment WHERE participant=? AND id < ?", [participant_id, lowest_moment_id]).fetchone()
+
+        # Get count of moments above maximum:
+        moments_above = DB.get_db().execute("SELECT count(id) as num FROM Moment WHERE participant=? AND id > ?", [participant_id, highest_moment_id]).fetchone()
+
+        # Get count of all moments for participant:
+        all_moments = DB.get_db().execute("SELECT count(id) as num FROM Moment WHERE participant=?",
+                                          [participant_id]).fetchone()
+
+        moments_with_metadata = {
+            'participant_id': participant_id,
+            # 'min_id': min_id,
+            # 'max_id': max_id,
+            'lowest_moment_id': lowest_moment_id,
+            'highest_moment_id': highest_moment_id,
+            'count': len(moments_list),
+            'moment_count_below_min': moments_below['num'],
+            'moment_count_above_max': moments_above['num'],
+            'total_moments_available': all_moments['num'],
+            'moments': moments_list
+        }
+
+        return moments_with_metadata
 
     @staticmethod
-    def get_moments_for_participant_json(participant_id:int, since_id=0):
-        ms = []
-        for m in Moment.get_moments_for_participant(participant_id, since_id):
-            ms.append(m.to_dict())
-        return json.dumps(ms, indent=4)
+    def get_moments_for_participant_json(participant_id:int, min_id=0, max_id=None, limit=None, order='desc'):
+
+        moments = Moment.get_moments_for_participant(participant_id, min_id, max_id , limit, order)
+
+        moment_dicts = [m.to_dict() for m in moments['moments']]
+
+        moments['moments'] = moment_dicts
+
+        return json.dumps(moments, indent=4)
 
     @staticmethod
     def exists_in_db(moment_id:int):

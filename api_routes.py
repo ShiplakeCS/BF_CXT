@@ -82,6 +82,22 @@ def get_participant_moments_since_id(p_id, m_id):
     else:
         abort(401)
 
+@app.route('/api/participants/<p_id>/moments/')
+def get_participants_moments(p_id):
+
+    min_id = request.args.get('min')
+    max_id = request.args.get('max')
+    order = request.args.get('order')
+    limit = request.args.get('limit')
+
+    if auth_consultant() or auth_participant(p_id):
+        return db_models.Moment.get_moments_for_participant_json(int(p_id), min_id, max_id, limit, order)
+
+    else:
+        abort(401)
+
+
+
 @app.route('/api/participants/<p_id>/moments/<moment_id>/media/<media_id>/<size>')
 def get_participant_moment_media(p_id, moment_id, media_id, size):
     if auth_consultant() or auth_participant(p_id):

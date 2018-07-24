@@ -101,7 +101,7 @@ def participant_moments():
 
     project = db_models.Project(participant.project_id)
 
-    return render_template('participant/moments.html', participant_id=participant.id, researcher_details={'name':project.consultants[0].display_name, 'email':project.consultants[0].email}, support_details={'contact_email':app.config['SUPPORT_DETAILS']['contact_email'], 'contact_name':app.config['SUPPORT_DETAILS']['contact_email']}, onload='load_participant_moments({},0)'.format(participant.id))
+    return render_template('participant/moments.html', participant_id=participant.id, researcher_details={'name':project.consultants[0].display_name, 'email':project.consultants[0].email}, support_details={'contact_email':app.config['SUPPORT_DETAILS']['contact_email'], 'contact_name':app.config['SUPPORT_DETAILS']['contact_email']}, onload='load_participant_moments({})'.format(participant.id))
 
 
 

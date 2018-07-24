@@ -1,4 +1,70 @@
-function load_participant_moments(p_id, since_moment_id) {
+function render_moment_html(m) {
+
+    moment_html = '<div class="moment_card card mb-4" id="moment_' + m.id + '">';
+
+    ////// MOMENT CARD HEADER
+
+    modified_date = new Date(m.modified_ts);
+
+    moment_html += '<div class="card-header small"> ' +
+        '<span class="float-left">' + modified_date.toLocaleDateString() + ' ' + modified_date.getHours() + ':' + modified_date.getMinutes() + '</span>' +
+        '<span class="float-right text-muted" style="font-family:sans-serif">';
+
+    // Generate ratings stars: Filled in stars
+    for (var r = 0; r < m.rating; r++) {
+        moment_html += '&#x2605;';
+    }
+    // Generate ratings stars: empty in stars
+    for (var r = 0; r < (5 - m.rating); r++) {
+        moment_html += '&#x2606;';
+    }
+
+    moment_html += '</span>' +
+        '</div>';
+
+    ////// MOMENT CARD BODY
+    moment_html += '<div class="card-body">' +
+        '<p class="card-text">' + m.text + '</p>';
+
+    //TODO: Replace with dynamically loaded moment media for each one found in m.media
+    for (var media_num = 0; media_num < m.media.length; media_num++) {
+
+        // if image...
+
+        if (m.media[media_num].media_type == 'image') {
+            moment_html += '<a href="/api/participants/' + m.parent_participant_id + '/moments/' + m.id + '/media/' + m.media[media_num].id + '/original" aria-label="original thumbnail"><img class="card-img-bottom mb-2" src="/api/participants/' + m.parent_participant_id + '/moments/' + m.id + '/media/' + m.media[media_num].id + '/large" alt="Moment image" style="width:100%"></a>';
+
+        }
+        //if video...
+        else if (m.media[media_num].media_type == 'video') {
+            moment_html += '<video width="100%" controls><source src="/api/participants/' + m.parent_participant_id + '/moments/' + m.id + '/media/' + m.media[media_num].id + '/original" type="video/mp4"></video>';
+        }
+
+
+    }
+
+    if (m.gps.lat != null) {
+        moment_html += '<a href="https://www.google.com/maps/search/?api=1&query=' + m.gps.lat + ',' + m.gps.long + '" class="small text-muted">&#x1F4CD; Location captured</a>';
+    }
+    moment_html += '</div>';
+
+    ////// MOMENT CARD FOOTER
+    // generate moment card footer as placeholder for comments
+
+    moment_html += '<div class="card-footer">' +
+        '<button data-toggle="collapse" data-target="#moment_' + m.id + '_comments">' +
+        'Comments (count)</button>' +
+        '<div id="moment_' + m.id + '_comments" class="collapse">' +
+        '</div>' +
+        '</div>';
+
+    moment_html += '</div>';
+
+    return moment_html;
+
+}
+
+function load_participant_moments(p_id, min_id = null, max_id = 5, limit = 20, order = 'desc') {
 
     var xhr = new XMLHttpRequest();
 
@@ -11,84 +77,96 @@ function load_participant_moments(p_id, since_moment_id) {
 
             // for each moment, render a moment card
 
-            for (var i = 0; i < moments.length; i++) {
+            for (var i = 0; i < moments.count; i++) {
 
-                moment_html = "";
-
-                // get current moment
-                m = moments[i];
-
-                moment_html = '<div class="card mb-4" id="moment_x">';
-
-                // generate moment card header
-
-                modified_date = new Date(m.modified_ts);
-
-                moment_html += '<div class="card-header small"> ' +
-                    '<span class="float-left">' + modified_date.toLocaleDateString() + ' ' + modified_date.getHours() + ':' + modified_date.getMinutes() + '</span>' +
-                    '<span class="float-right text-muted" style="font-family:sans-serif">';
-
-                for (var r = 0; r < m.rating; r++) {
-                    moment_html += '&#x2605;';
-                }
-
-                for (var r = 0; r < (5 - m.rating); r++) {
-                    moment_html += '&#x2606;';
-                }
-
-                moment_html += '</span>' +
-                    '</div>';
-
-                // generate moment card body
-
-                moment_html += '<div class="card-body">' +
-                    '<p class="card-text">' + m.text + '</p>';
-
-                //TODO: Replace with dynamically loaded moment media for each one found in m.media
-                for (var media_num = 0; media_num < m.media.length; media_num++) {
-
-                    // if image...
-
-                    if (m.media[media_num].media_type == 'image') {
-                        moment_html += '<a href="/api/participants/' + p_id + '/moments/' + m.id + '/media/' + m.media[media_num].id + '/original" aria-label="original thumbnail"><img class="card-img-bottom mb-2" src="/api/participants/' + p_id + '/moments/' + m.id + '/media/' + m.media[media_num].id + '/large" alt="Moment image" style="width:100%"></a>';
-
-                    }
-                    //if video...
-                    else if (m.media[media_num].media_type == 'video') {
-                        moment_html += '<video width="100%" controls><source src="/api/participants/' + p_id + '/moments/' + m.id + '/media/' + m.media[media_num].id + '/original" type="video/mp4"></video>';
-                    }
-
-
-                }
-
-                if (m.gps.lat != null) {
-                    moment_html += '<a href="https://www.google.com/maps/search/?api=1&query=' + m.gps.lat + ',' + m.gps.long + '" class="small text-muted">&#x1F4CD; Location captured</a>';
-                }
-                moment_html += '</div>';
-
-                // generate moment card footer as placeholder for comments
-
-                moment_html += '<div class="card-footer">' +
-                    '<button data-toggle="collapse" data-target="#moment_' + m.id + '_comments">' +
-                    'Comments (count)</button>' +
-                    '<div id="moment_' + m.id + '_comments" class="collapse">' +
-                    '</div>' +
-                    '</div>';
-
-                moment_html += '</div>';
                 // append moment to moments div
-                $('#moments').append(moment_html);
+                $('#moments').append(render_moment_html(moments.moments[i]));
 
             }
 
+            // add 'load more' link
+            if (moments.moment_count_below_min >= 20) {
+                $('#moments').append("<div>\n" +
+                    "\t<a id='load_more_moments' href=\"#\" class=\"text-center d-block\">Load next 20 moments</a>\n" +
+                    "</div>");
+            }
+            else if (moments.moment_count_below_min > 1) {
+                $('#moments').append("<div>\n" +
+                    "\t<a id='load_more_moments' href=\"#\" class=\"text-center d-block\">Load next " + moments.moment_count_below_min + " moments</a>\n" +
+                    "</div>");
+            }
+            else if (moments.moment_count_below_min == 1) {
+                $('#moments').append("<div>\n" +
+                    "\t<a id='load_more_moments' href=\"#\" class=\"text-center d-block\">Load last moment</a>\n" +
+                    "</div>");
+            }
+            $('a#load_more_moments').on('click', function (e) {
+                e.preventDefault();
+                $(this).remove();
+                load_participant_moments(p_id, min_id = 0, max_id = (moments.lowest_moment_id - 1));
 
+            });
+
+            // Update the highest moment id value in session storage for later use by get_new_moments()
+            sessionStorage.highest_moment_id = moments.highest_moment_id;
+
+            window.setInterval(get_new_moments, 10 * 1000, p_id);
         }
 
     }
 
-    xhr.open('GET', '/api/participants/' + p_id + '/moments/since/' + since_moment_id, true);
+    xhr.open('GET', '/api/participants/' + p_id + '/moments/?min=' + min_id + '&max=' + max_id + '&limit=' + limit, true);
 
     xhr.send(null);
+
+
+}
+
+function get_new_moments(p_id, limit = 20) {
+
+    if (sessionStorage.highest_moment_id) {
+
+        var xhr = new XMLHttpRequest();
+
+        xhr.onload = function () {
+
+            // If the response to the request is OK
+            if (xhr.status === 200) {
+                // Get collection of moments
+                new_moments = JSON.parse(xhr.responseText);
+
+                // for each moment, render a moment card
+
+                for (var i = 0; i < new_moments.count; i++) {
+
+                    // append moment to moments div
+                    $('#moments').prepend(render_moment_html(new_moments.moments[i]));
+                    new_moment_card = $('#moments div:first-child');
+                    new_moment_card.hide();
+                    new_moment_card.find(".card-header span.float-left").prepend("<span id = 'new_moment_indicator' class='text-success mr-2'>&#9679;</span>");
+                    new_moment_card.slideDown("fast");
+
+                    new_moment_card.hover(function () {
+                        $(this).find("#new_moment_indicator").remove();
+                    });
+
+                    setTimeout(function () {
+                        new_moment_card.find("#new_moment_indicator").remove();
+                    }, 60 * 1000);
+                }
+
+                if (new_moments.count > 0){
+                    sessionStorage.highest_moment_id = new_moments.highest_moment_id;
+                }
+
+            }
+        }
+
+
+        xhr.open('GET', '/api/participants/' + p_id + '/moments/?min=' + (parseInt(sessionStorage.highest_moment_id) + 1) + '&limit=' + limit + "&order=asc", true);
+
+        xhr.send(null);
+    }
 
 }
 
