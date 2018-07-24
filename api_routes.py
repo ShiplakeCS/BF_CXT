@@ -96,6 +96,42 @@ def get_participants_moments(p_id):
     else:
         abort(401)
 
+@app.route('/api/participants/<p_id>/moments/comments/')
+def get_participants_comments(p_id):
+
+    if auth_consultant() or auth_participant(p_id):
+
+        comments_since_id = request.args.get('since')
+
+        if comments_since_id:
+            return db_models.MomentComment.get_comments_for_participant_json(p_id, comments_since_id)
+
+        moment_ids = request.args.get('moment_ids')
+        exclude_comment_ids = request.args.get('exclude_comment_ids')
+
+        if moment_ids:
+            moment_ids = moment_ids.replace("%2C", ",")
+            moment_ids = moment_ids.split(',')
+            try:
+                moment_ids.remove("")
+            except ValueError:
+                pass
+
+        if exclude_comment_ids:
+            exclude_comment_ids = exclude_comment_ids.replace("%2C", ",")
+            exclude_comment_ids = exclude_comment_ids.split(',')
+            try:
+                exclude_comment_ids.remove("")
+            except ValueError:
+                pass
+
+        if moment_ids or exclude_comment_ids:
+            return db_models.MomentComment.get_comments_for_moment_ids_json(moment_ids, exclude_comment_ids)
+
+        else:
+            abort(404)
+    else:
+        abort(401)
 
 
 @app.route('/api/participants/<p_id>/moments/<moment_id>/media/<media_id>/<size>')

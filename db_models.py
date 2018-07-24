@@ -5,6 +5,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 from PIL import Image
 
+
 class DB:
     """
     Provides static methods to access the database
@@ -35,7 +36,6 @@ class DB:
             g.db.close()
 
 
-
 class ConsultantNotFoundError(Exception):
     pass
 
@@ -55,8 +55,10 @@ class ConsultantNotAdminError(Exception):
 class DeleteAllAdminConsultantError(Exception):
     pass
 
+
 class DeleteSelfAdminConsultantError(Exception):
     pass
+
 
 class Consultant:
 
@@ -295,6 +297,7 @@ class Consultant:
 
         return json.dumps(consultant_list, indent=4)
 
+
 class ClientNotFoundError(Exception):
     pass
 
@@ -302,8 +305,10 @@ class ClientNotFoundError(Exception):
 class ClientUpdateError(Exception):
     pass
 
+
 class ClientDeleteError(Exception):
     pass
+
 
 class Client:
 
@@ -416,7 +421,8 @@ class Client:
 
         if client_project_rows:
 
-            error_string = "Cannot delete client {} as the following project IDs exist for this client: ".format(self.id)
+            error_string = "Cannot delete client {} as the following project IDs exist for this client: ".format(
+                self.id)
 
             for project in client_project_rows:
                 error_string += "{}, ".format(project['id'])
@@ -470,17 +476,22 @@ class Client:
 class ParticipantNotFoundError(Exception):
     pass
 
+
 class ParticipantLoginFailed(Exception):
     pass
+
 
 class ParticipantNotActive(Exception):
     pass
 
+
 class ProjectNotFound(Exception):
     pass
 
+
 class DeleteActiveParticipantError(Exception):
     pass
+
 
 class Participant:
 
@@ -491,7 +502,9 @@ class Participant:
             raise ParticipantNotFoundError("Participant ID must be an integer.")
 
         db = DB.get_db()
-        row = db.execute("SELECT project, within_project_num, display_name, active, last_activity_ts, description, login_url, pin, download_bundle_path FROM Participant WHERE id=?", [str(self.id)]).fetchone()
+        row = db.execute(
+            "SELECT project, within_project_num, display_name, active, last_activity_ts, description, login_url, pin, download_bundle_path FROM Participant WHERE id=?",
+            [str(self.id)]).fetchone()
 
         if row:
             self.__project_id = int(row['project'])
@@ -523,7 +536,8 @@ class Participant:
         return self.__moments
 
     def refresh_moments(self):
-        self.__moments = Moment.get_moments_for_participant(self.id)['moments']  # ['moments'] on end to go straight to list of Moment objects and discard metadata
+        self.__moments = Moment.get_moments_for_participant(self.id)[
+            'moments']  # ['moments'] on end to go straight to list of Moment objects and discard metadata
 
     @property
     def download_bundle_path(self):
@@ -550,7 +564,8 @@ class Participant:
             participant_numbers.append(int(r['within_project_num']))
 
         if value in participant_numbers:
-            raise ValueError("A participant is already assigned within-project number {} for project {}".format(value, self.__project_id))
+            raise ValueError("A participant is already assigned within-project number {} for project {}".format(value,
+                                                                                                                self.__project_id))
 
         self.__within_project_number = value
 
@@ -569,7 +584,7 @@ class Participant:
         return self.__active
 
     @active.setter
-    def active(self, value:bool):
+    def active(self, value: bool):
         self.__active = value
         self.update_last_activity_ts()
 
@@ -598,7 +613,7 @@ class Participant:
         return self.__pin
 
     @pin.setter
-    def pin(self, value:str):
+    def pin(self, value: str):
 
         if not value.isnumeric():
             raise ValueError("PIN must contain numbers only")
@@ -611,7 +626,8 @@ class Participant:
     def update_last_activity_ts(self):
         self.__last_activity_ts = datetime.utcnow()
         db = DB.get_db()
-        db.execute("UPDATE Participant SET last_activity_ts=? WHERE id=?", (datetime.isoformat(self.last_activity_ts), self.id))
+        db.execute("UPDATE Participant SET last_activity_ts=? WHERE id=?",
+                   (datetime.isoformat(self.last_activity_ts), self.id))
         db.commit()
         return 'Timestamp updated'
 
@@ -627,7 +643,7 @@ class Participant:
         new_url = str(uuid.uuid4()).replace('-', '%2D')
         # Check if the URL is unique in the participant table
         db = DB.get_db()
-        row = db.execute("SELECT id FROM Participant WHERE login_url=?",[new_url]).fetchone()
+        row = db.execute("SELECT id FROM Participant WHERE login_url=?", [new_url]).fetchone()
         if row:
             # url already exists, get another
             new_url = Participant.get_random_login_url()
@@ -638,19 +654,21 @@ class Participant:
 
     @staticmethod
     def get_random_pin():
-        new_pin = str(random.randint(0,9999)).zfill(4)
+        new_pin = str(random.randint(0, 9999)).zfill(4)
         return new_pin
 
     def update_in_db(self):
 
         db = DB.get_db()
-        db.execute("UPDATE Participant SET within_project_num=?, display_name=?, active=?, last_activity_ts=?, description=?, login_url=?, pin=?, download_bundle_path=? WHERE id=?",
-                   [self.within_project_number, self.display_name, str(int(self.active)), datetime.isoformat(self.last_activity_ts),
-                    self.description, self.login_url, self.pin, self.download_bundle_path, self.id])
+        db.execute(
+            "UPDATE Participant SET within_project_num=?, display_name=?, active=?, last_activity_ts=?, description=?, login_url=?, pin=?, download_bundle_path=? WHERE id=?",
+            [self.within_project_number, self.display_name, str(int(self.active)),
+             datetime.isoformat(self.last_activity_ts),
+             self.description, self.login_url, self.pin, self.download_bundle_path, self.id])
         db.commit()
         return Participant(self.id)
 
-    def delete_from_db(self, admin_consultant:Consultant):
+    def delete_from_db(self, admin_consultant: Consultant):
 
         if not admin_consultant.admin:
             raise ConsultantNotAdminError("Only administrators can delete participants from the database.")
@@ -667,7 +685,7 @@ class Participant:
                                        str(self.id)), True)
 
             db = DB.get_db()
-            db.execute("DELETE FROM Participant WHERE id=?",[self.id])
+            db.execute("DELETE FROM Participant WHERE id=?", [self.id])
             db.commit()
             return "Participant {} deleted from database".format(self.id)
 
@@ -683,8 +701,8 @@ class Participant:
 
     @staticmethod
     def add_new_to_db(project_id, display_name=None, active=None, description=None):
-    #  within-project-num is auto generated
-    # PIN and Login URL are also randomly generated
+        #  within-project-num is auto generated
+        # PIN and Login URL are also randomly generated
 
         db = DB.get_db()
 
@@ -717,7 +735,6 @@ class Participant:
         new_id = int(cur.lastrowid)
         return Participant(new_id)
 
-
     @staticmethod
     def get_basic_info_from_login_url(login_url):
 
@@ -728,7 +745,8 @@ class Participant:
         else:
             project = Project(Participant(row['id']).project_id)
 
-            return {'bf_code': project.bf_code, 'consultant_name': project.consultants[0].display_name, 'consultant_email': project.consultants[0].email, 'participant_id': id}
+            return {'bf_code': project.bf_code, 'consultant_name': project.consultants[0].display_name,
+                    'consultant_email': project.consultants[0].email, 'participant_id': id}
 
     @staticmethod
     def login(url, pin):
@@ -739,7 +757,8 @@ class Participant:
         result = db.execute("SELECT id, active FROM Participant WHERE login_url=? and pin=?", [url, pin]).fetchone()
 
         if not result:
-            raise ParticipantLoginFailed("Participant login URL/PIN mismatch. Check PIN is correct and that URL is still active. Your research consultant can issue you with a new login URL and PIN if necessary.")
+            raise ParticipantLoginFailed(
+                "Participant login URL/PIN mismatch. Check PIN is correct and that URL is still active. Your research consultant can issue you with a new login URL and PIN if necessary.")
 
         if result['active'] != 1:
             raise ParticipantNotActive
@@ -780,13 +799,13 @@ class Participant:
 
         # path_to_participant_bundle = os.path.join(app.config['TEMP_FOLDER'], "project_{}_(id_{})".format(Project(self.project_id).bf_code, self.project_id), "participant_data","participant_{}_(within_project_number_{}_display_name_{})".format(self.id, self.within_project_number, self.display_name))
 
-        path_to_participant_bundle = os.path.join(app.config['TEMP_FOLDER'], "projects", str(self.project_id),"participants", "{}(ID{})".format(self.within_project_number,self.id))
-
+        path_to_participant_bundle = os.path.join(app.config['TEMP_FOLDER'], "projects", str(self.project_id),
+                                                  "participants",
+                                                  "{}(ID{})".format(self.within_project_number, self.id))
 
         os.makedirs(path_to_participant_bundle, exist_ok=True)
 
         if generate_data_files or participant_zip:
-
             # Create participant data JSON and CSV
 
             # Scrub data that we don't want included (login URL and PIN)
@@ -795,7 +814,8 @@ class Participant:
             del d['login_url']
             del d['download_bundle_path']
 
-            with open(os.path.join(path_to_participant_bundle, "participant_{}.json".format(self.id)), "w") as json_file:
+            with open(os.path.join(path_to_participant_bundle, "participant_{}.json".format(self.id)),
+                      "w") as json_file:
                 json_file.write(json.dumps(d, indent=4))
 
             with open(os.path.join(path_to_participant_bundle, "participant_{}.csv".format(self.id)), "w") as csv_file:
@@ -819,7 +839,7 @@ class Participant:
             try:
 
                 participant_zip_path = os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(self.project_id),
-                                            str(self.id))
+                                                    str(self.id))
 
                 # for file in os.listdir(moment_zip_path):
                 #     if file.endswith(".zip"):
@@ -830,19 +850,18 @@ class Participant:
             except:
                 pass
 
-
             # Create archive of this moment, move it to appropriate moment_data folder and return path to download it
 
             now = datetime.utcnow()
 
             zip_file_name = "project_{}_participant_{}_{}{}{}_{}{}{}.zip".format(Project(self.project_id).bf_code,
-                                                                            self.id,
-                                                                            now.year,
-                                                                            str(now.month).zfill(2),
-                                                                            str(now.day).zfill(2),
-                                                                            str(now.hour).zfill(2),
-                                                                            str(now.minute).zfill(2),
-                                                                            str(now.second).zfill(2))
+                                                                                 self.id,
+                                                                                 now.year,
+                                                                                 str(now.month).zfill(2),
+                                                                                 str(now.day).zfill(2),
+                                                                                 str(now.hour).zfill(2),
+                                                                                 str(now.minute).zfill(2),
+                                                                                 str(now.second).zfill(2))
 
             zip_path = os.path.join(app.config['TEMP_FOLDER'], zip_file_name.rstrip(".zip"))
 
@@ -876,7 +895,6 @@ class Participant:
         else:
             return path_to_participant_bundle
 
-
     def to_dict(self):
         return {
             "id": self.id,
@@ -898,23 +916,30 @@ class Participant:
 class ProjectTypeNotExistError(Exception):
     pass
 
+
 class ProjectBFCodeError(Exception):
     pass
+
 
 class ProjectActivationError(Exception):
     pass
 
+
 class DeleteActiveProjectError(Exception):
     pass
+
 
 class ProjectTagNotFoundError(Exception):
     pass
 
+
 class ConsultantNotAssignedToProjectError(Exception):
     pass
 
+
 class UploadParticipantCSVFormatError(Exception):
     pass
+
 
 class Project:
 
@@ -927,7 +952,9 @@ class Project:
 
         db = DB.get_db()
 
-        project_details = db.execute("SELECT Project.bf_code, Project.client, Project.title, Project.project_type, Project.active, Project.start_ts, Project.last_activity_ts, Project.download_bundle_path FROM Project WHERE Project.id=?", [self.__id]).fetchone()
+        project_details = db.execute(
+            "SELECT Project.bf_code, Project.client, Project.title, Project.project_type, Project.active, Project.start_ts, Project.last_activity_ts, Project.download_bundle_path FROM Project WHERE Project.id=?",
+            [self.__id]).fetchone()
 
         if not project_details:
             raise ProjectNotFound("No project found with ID {}".format(id))
@@ -944,7 +971,6 @@ class Project:
         self.__participants = []
         self.__tags = []
 
-
     @property
     def id(self):
         return self.__id
@@ -958,7 +984,7 @@ class Project:
         return self.__client_id
 
     @client_id.setter
-    def client_id(self, value:int):
+    def client_id(self, value: int):
         # Check client exists by attempting to create a Client instance
         c = Client(value)
         self.__client_id = c.id
@@ -986,7 +1012,7 @@ class Project:
 
         # Check value is an acceptable project type from project type table
 
-        row = DB.get_db().execute("SELECT description FROM ProjectType WHERE id=?",[str(value)]).fetchone()
+        row = DB.get_db().execute("SELECT description FROM ProjectType WHERE id=?", [str(value)]).fetchone()
 
         if not row:
             raise ProjectTypeNotExistError("No project type found with ID {}".format(value))
@@ -997,7 +1023,8 @@ class Project:
     @property
     def project_type_description(self):
 
-        row = DB.get_db().execute("SELECT description FROM ProjectType WHERE id=?", [str(self.__project_type_id)]).fetchone()
+        row = DB.get_db().execute("SELECT description FROM ProjectType WHERE id=?",
+                                  [str(self.__project_type_id)]).fetchone()
 
         return row['description']
 
@@ -1047,7 +1074,6 @@ class Project:
     def participants(self):
 
         if len(self.__participants) == 0:
-
             self.__participants = self.refresh_assigned_participants()
 
         return self.__participants
@@ -1113,7 +1139,7 @@ class Project:
             self.__download_bundle_path = project_row['download_bundle_path']
 
     @staticmethod
-    def bf_code_is_valid(bf:str):
+    def bf_code_is_valid(bf: str):
 
         bf = bf.upper()
 
@@ -1123,7 +1149,7 @@ class Project:
             return True
 
     @staticmethod
-    def bf_code_is_unique(bf:str):
+    def bf_code_is_unique(bf: str):
 
         # Check bf code not already in use
         bf_check = DB.get_db().execute("SELECT id FROM Project WHERE bf_code=?", [bf]).fetchone()
@@ -1133,13 +1159,14 @@ class Project:
         else:
             return True
 
-    def update_bf_code(self, bf:str, admin_constulant:Consultant):
+    def update_bf_code(self, bf: str, admin_constulant: Consultant):
 
         if not self.bf_code_is_valid(bf):
             raise ProjectBFCodeError("BF code not in correct format, must start with BF.")
 
         if not admin_constulant.admin:
-            raise ConsultantNotAdminError("Only admin users have permission to update a project's BF code once created.")
+            raise ConsultantNotAdminError(
+                "Only admin users have permission to update a project's BF code once created.")
 
         if not self.bf_code_is_unique(bf):
             raise ProjectBFCodeError(
@@ -1147,11 +1174,11 @@ class Project:
 
         self.__bf_code = bf
         self.update_last_activity_ts()
-        self.update_in_db() # Must update in DB to avoid two users claiming the same BF code before one is updated.
+        self.update_in_db()  # Must update in DB to avoid two users claiming the same BF code before one is updated.
 
     def add_tag(self, tag):
 
-        if len(tag)<1:
+        if len(tag) < 1:
             raise ValueError("Tags must be at least 1 character in length.")
 
         # Check if tag already exists for project - don't add if it is already present
@@ -1159,7 +1186,6 @@ class Project:
         tag_check = DB.get_db().execute("SELECT id FROM Tag WHERE project=? AND text=?", [self.id, tag]).fetchone()
 
         if not tag_check:
-
             db = DB.get_db()
             cur = db.execute("INSERT INTO Tag VALUES (?,?,?)", [None, self.id, tag])
             db.commit()
@@ -1171,7 +1197,7 @@ class Project:
 
         try:
             db = DB.get_db()
-            db.execute("DELETE FROM Tag WHERE id=?",[self.id])
+            db.execute("DELETE FROM Tag WHERE id=?", [self.id])
             db.commit()
 
         except Exception as e:
@@ -1180,7 +1206,7 @@ class Project:
 
         return 'Tag {} removed from DB'.format(tag_id)
 
-    def assign_consultant_to_project(self, c:Consultant):
+    def assign_consultant_to_project(self, c: Consultant):
 
         # If the consultant has already been assigned then just don't do anything
         for consultant in self.__consultants:
@@ -1194,7 +1220,7 @@ class Project:
         self.update_last_activity_ts()
         return self.consultants
 
-    def remove_consultant_from_project(self, c:Consultant, admin_consultant:Consultant):
+    def remove_consultant_from_project(self, c: Consultant, admin_consultant: Consultant):
 
         if not admin_consultant.admin:
             raise ConsultantNotAdminError("Only admin consultants can remove consultants from projects!")
@@ -1206,7 +1232,7 @@ class Project:
         self.update_last_activity_ts()
         return self.consultants
 
-    def activate(self, requesting_consultant:Consultant):
+    def activate(self, requesting_consultant: Consultant):
 
         # Only assigned consultants or admin can activate a project
 
@@ -1251,31 +1277,37 @@ class Project:
     def update_in_db(self):
 
         db = DB.get_db()
-        db.execute("UPDATE Project SET bf_code=?, client=?, title=?, project_type=?, active=?, start_ts=?, last_activity_ts=?, download_bundle_path=? WHERE id=?",[self.bf_code, self.client_id, self.title, self.project_type_id, str(int(self.active)), datetime.isoformat(self.start_ts), datetime.isoformat(self.last_activity_ts), self.download_bundle_path, self.id])
+        db.execute(
+            "UPDATE Project SET bf_code=?, client=?, title=?, project_type=?, active=?, start_ts=?, last_activity_ts=?, download_bundle_path=? WHERE id=?",
+            [self.bf_code, self.client_id, self.title, self.project_type_id, str(int(self.active)),
+             datetime.isoformat(self.start_ts), datetime.isoformat(self.last_activity_ts), self.download_bundle_path,
+             self.id])
         db.commit()
         return Project(self.id)
 
-    def delete_participants_from_db(self, admin_consultant:Consultant):
+    def delete_participants_from_db(self, admin_consultant: Consultant):
 
         active_participants = False
 
         for p in self.participants:
             if p.active:
                 active_participants = True
-                raise DeleteActiveParticipantError("Attempt to delete project with active participants. Deactivate all participants before deleting the project. This should be done automatically when the project is deactivated.")
+                raise DeleteActiveParticipantError(
+                    "Attempt to delete project with active participants. Deactivate all participants before deleting the project. This should be done automatically when the project is deactivated.")
                 break
 
         if not active_participants:
             for p in self.participants:
                 p.delete_from_db(admin_consultant)
 
-    def delete_from_db(self, admin_consultant:Consultant):
+    def delete_from_db(self, admin_consultant: Consultant):
 
         if not admin_consultant.admin:
             raise ConsultantNotAdminError("Only administrators can delete projects.")
 
         if self.active:
-            raise DeleteActiveProjectError("Project is still active. Deactivate project {} before deleting.".format(self.id))
+            raise DeleteActiveProjectError(
+                "Project is still active. Deactivate project {} before deleting.".format(self.id))
 
         try:
             # Delete the participants for this project first
@@ -1284,14 +1316,13 @@ class Project:
             # Delete media folder for project's uploaded media
             shutil.rmtree(os.path.join(app.config['MOMENT_MEDIA_FOLDER'], "projects", str(self.id)), True)
 
-
             # Unassign all consultants from this project
             [self.remove_consultant_from_project(c, admin_consultant) for c in self.consultants]
 
             # Remove project entries from Project and Tag tables in DB
             db = DB.get_db()
             db.execute("DELETE FROM Tag where project=?", [self.id])
-            db.execute("DELETE FROM Project where id=?",[self.id])
+            db.execute("DELETE FROM Project where id=?", [self.id])
             db.commit()
             return 'Project {} deleted from database'.format(self.bf_code)
 
@@ -1317,7 +1348,7 @@ class Project:
         try:
             csv_file_path = os.path.join(app.config['UPLOAD_FOLDER'], csv_file_name)
             participants = []
-            with open(csv_file_path,'r') as csv_file:
+            with open(csv_file_path, 'r') as csv_file:
                 csv_file.readline()
                 for line in csv_file:
 
@@ -1326,9 +1357,9 @@ class Project:
                         raise UploadParticipantCSVFormatError("Invalid CSV file format. "
                                                               "Should contain 3 columns, has {}".format(len(data)))
                     participants.append({
-                        'display_name':data[0],
-                        'active':data[1].lower()[0]=="y" or data[1].lower()=="true" or data[1]=="1",
-                        'description':data[2]
+                        'display_name': data[0],
+                        'active': data[1].lower()[0] == "y" or data[1].lower() == "true" or data[1] == "1",
+                        'description': data[2]
                     })
 
             os.remove(csv_file_path)
@@ -1336,7 +1367,8 @@ class Project:
             return self.bulk_add_new_participants(participants)
 
         except FileNotFoundError:
-            raise FileNotFoundError("Could not find csv_file {}, aborting bulk participant upload.".format(csv_file_name))
+            raise FileNotFoundError(
+                "Could not find csv_file {}, aborting bulk participant upload.".format(csv_file_name))
 
     def bulk_add_new_participants(self, participants_list, as_json=False):
 
@@ -1351,7 +1383,7 @@ class Project:
                                                                 p['active'], p['description']))
         return added_participants
 
-    def consultant_is_assigned(self, c:Consultant):
+    def consultant_is_assigned(self, c: Consultant):
 
         for consultant in self.consultants:
             if c.id == consultant.id:
@@ -1360,7 +1392,7 @@ class Project:
         return False
 
     @staticmethod
-    def add_new_to_db(bf_code:str, client_id:int, title:str, project_type_id:int, active:bool, start_ts:datetime):
+    def add_new_to_db(bf_code: str, client_id: int, title: str, project_type_id: int, active: bool, start_ts: datetime):
 
         if not Project.bf_code_is_valid(bf_code):
             raise ProjectBFCodeError("Project BF code is not in correct format. Must begin with BF.")
@@ -1369,7 +1401,9 @@ class Project:
             raise ProjectBFCodeError("Project BF code {} is already in use.".format(bf_code))
 
         db = DB.get_db()
-        cur = db.execute("INSERT INTO Project VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", [None, bf_code, client_id, title, project_type_id, str(int(active)), datetime.isoformat(start_ts), datetime.isoformat(datetime.utcnow()), None])
+        cur = db.execute("INSERT INTO Project VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                         [None, bf_code, client_id, title, project_type_id, str(int(active)),
+                          datetime.isoformat(start_ts), datetime.isoformat(datetime.utcnow()), None])
         db.commit()
         new_id = cur.lastrowid
         return Project(int(new_id))
@@ -1410,12 +1444,15 @@ class Project:
             for m in x['moments']:
                 del m['media']
 
-        with open(os.path.join(path_to_project_bundle, "project_{}_(id_{}).json".format(self.bf_code, self.id)), "w") as json_file:
+        with open(os.path.join(path_to_project_bundle, "project_{}_(id_{}).json".format(self.bf_code, self.id)),
+                  "w") as json_file:
             json_file.write(json.dumps(d, indent=4))
 
         # Generate Project CSV file
-        with open(os.path.join(path_to_project_bundle, "project_{}_(id_{}).csv".format(self.bf_code, self.id)), "w") as project_csv_file:
-            project_csv_file.write("id,project_code,title,project_type,start_ts,last_activity_ts,client_id,client_name,client_contact_name,client_contact_email,client_contact_phone\n")
+        with open(os.path.join(path_to_project_bundle, "project_{}_(id_{}).csv".format(self.bf_code, self.id)),
+                  "w") as project_csv_file:
+            project_csv_file.write(
+                "id,project_code,title,project_type,start_ts,last_activity_ts,client_id,client_name,client_contact_name,client_contact_email,client_contact_phone\n")
             project_csv_file.write("{},{},{},{},{},{},{},{},{},{},{}\n".format(
                 self.id,
                 self.bf_code,
@@ -1445,7 +1482,9 @@ class Project:
                 del p['download_bundle_path']
 
             # Write participant data to CSV file
-            with open(os.path.join(path_to_project_bundle, "project_{}_(id_{})_participants.csv".format(self.bf_code, self.id)), "w") as participant_csv_file:
+            with open(os.path.join(path_to_project_bundle,
+                                   "project_{}_(id_{})_participants.csv".format(self.bf_code, self.id)),
+                      "w") as participant_csv_file:
                 csv_writer = csv.DictWriter(participant_csv_file, ps[0].keys())
                 csv_writer.writeheader()
                 csv_writer.writerows(ps)
@@ -1484,7 +1523,9 @@ class Project:
                 m['tags'] = tag_string
 
             # Write moments to CSV file
-            with open(os.path.join(path_to_project_bundle, "project_{}_(id_{})_moments.csv".format(self.bf_code, self.id)), "w") as moment_csv_file:
+            with open(os.path.join(path_to_project_bundle,
+                                   "project_{}_(id_{})_moments.csv".format(self.bf_code, self.id)),
+                      "w") as moment_csv_file:
                 csv_writer = csv.DictWriter(moment_csv_file, ms[0].keys())
                 csv_writer.writeheader()
                 csv_writer.writerows(ms)
@@ -1510,7 +1551,9 @@ class Project:
                 comment['project_id'] = self.id
 
             # Write comments data to CSV file
-            with open(os.path.join(path_to_project_bundle, "project_{}_(id_{})_moment_comments.csv".format(self.bf_code, self.id)), "w") as comments_csv_file:
+            with open(os.path.join(path_to_project_bundle,
+                                   "project_{}_(id_{})_moment_comments.csv".format(self.bf_code, self.id)),
+                      "w") as comments_csv_file:
                 csv_writer = csv.DictWriter(comments_csv_file, cs[0].keys())
                 csv_writer.writeheader()
                 csv_writer.writerows(cs)
@@ -1540,7 +1583,7 @@ class Project:
             str(now.second).zfill(2)
         )
 
-        zip_path = os.path.join(app.config['TEMP_FOLDER'],zip_file_name.rstrip(".zip"))
+        zip_path = os.path.join(app.config['TEMP_FOLDER'], zip_file_name.rstrip(".zip"))
         shutil.make_archive(zip_path, "zip", root_dir=path_to_project_bundle)
 
         # Remove temporary files
@@ -1596,8 +1639,10 @@ class Project:
 class MomentNotFoundError(Exception):
     pass
 
+
 class MomentRatingValueError(Exception):
     pass
+
 
 class Moment:
 
@@ -1608,7 +1653,9 @@ class Moment:
         except:
             MomentNotFoundError("Moment ID must be an integer.")
 
-        moment_details = DB.get_db().execute("SELECT participant, rating, text, gps_long, gps_lat, added_ts, modified_ts, mark_for_download, download_bundle_path FROM Moment WHERE id=?", [self.__id]).fetchone()
+        moment_details = DB.get_db().execute(
+            "SELECT participant, rating, text, gps_long, gps_lat, added_ts, modified_ts, mark_for_download, download_bundle_path FROM Moment WHERE id=?",
+            [self.__id]).fetchone()
 
         if not moment_details:
             raise MomentNotFoundError("No Moment found with ID {}".format(id))
@@ -1616,10 +1663,12 @@ class Moment:
         self.__participant_id = int(moment_details['participant'])
         self.__rating = int(moment_details['rating'])
         self.__text = moment_details['text']
-        self.__gps = {'long': float(moment_details['gps_long']) if moment_details['gps_long'] else None, 'lat': float(moment_details['gps_lat']) if moment_details['gps_lat'] else None}
+        self.__gps = {'long': float(moment_details['gps_long']) if moment_details['gps_long'] else None,
+                      'lat': float(moment_details['gps_lat']) if moment_details['gps_lat'] else None}
         self.__added_ts = dateutil.parser.parse(moment_details['added_ts'])
         self.__modified_ts = dateutil.parser.parse(moment_details['modified_ts'])
-        self.__mark_for_download = 1 == int(moment_details['mark_for_download']) if moment_details['mark_for_download'] else False
+        self.__mark_for_download = 1 == int(moment_details['mark_for_download']) if moment_details[
+            'mark_for_download'] else False
         self.__download_bundle_path = moment_details['download_bundle_path']
         self.__media = []
         self.__comments = []
@@ -1629,7 +1678,6 @@ class Moment:
         self.refresh_media()
         self.refresh_tags()
         self.refresh_comments()
-
 
     @property
     def id(self):
@@ -1687,7 +1735,7 @@ class Moment:
         return self.__mark_for_download
 
     @mark_for_download.setter
-    def mark_for_download(self, value:bool):
+    def mark_for_download(self, value: bool):
         self.__mark_for_download = value
 
     @property
@@ -1714,7 +1762,9 @@ class Moment:
 
         self.__tags = []
 
-        project_tag_rows = DB.get_db().execute("SELECT Tag.text FROM Tag, MomentTag WHERE MomentTag.tag=Tag.id and MomentTag.moment=?",[self.id]).fetchall()
+        project_tag_rows = DB.get_db().execute(
+            "SELECT Tag.text FROM Tag, MomentTag WHERE MomentTag.tag=Tag.id and MomentTag.moment=?",
+            [self.id]).fetchall()
 
         for row in project_tag_rows:
             self.__tags.append(row['text'])
@@ -1732,7 +1782,10 @@ class Moment:
     def update_in_db(self):
 
         db = DB.get_db()
-        db.execute("UPDATE Moment SET rating=?, text=?, gps_long=?, gps_lat=?, modified_ts=?, mark_for_download=?, download_bundle_path=? WHERE id=?", [self.rating, self.text, self.gps['long'], self.gps['lat'], self.modified_ts, str(int(self.mark_for_download)), self.download_bundle_path, self.id])
+        db.execute(
+            "UPDATE Moment SET rating=?, text=?, gps_long=?, gps_lat=?, modified_ts=?, mark_for_download=?, download_bundle_path=? WHERE id=?",
+            [self.rating, self.text, self.gps['long'], self.gps['lat'], self.modified_ts,
+             str(int(self.mark_for_download)), self.download_bundle_path, self.id])
         db.commit()
         return Moment(self.id)
 
@@ -1746,7 +1799,8 @@ class Moment:
         for m in self.media:
             m.delete_moment_media()
         # Delete moment media folder
-        shutil.rmtree(os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(self.parent_participant.project_id), str(self.parent_participant_id), str(self.id)), True)
+        shutil.rmtree(os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(self.parent_participant.project_id),
+                                   str(self.parent_participant_id), str(self.id)), True)
 
         db = DB.get_db()
         # Delete MomentTag entries for this moment
@@ -1756,7 +1810,7 @@ class Moment:
         db.commit()
         return 'Moment {} deleted from DB along with all related media'.format(self.id)
 
-    def assign_tag(self, tag_id:int):
+    def assign_tag(self, tag_id: int):
         # Check that tag_id exists for the project this moment relates to
 
         if type(tag_id) != int:
@@ -1764,7 +1818,8 @@ class Moment:
 
         parent_project_id = self.parent_participant.project_id
 
-        tag_check_row = DB.get_db().execute("SELECT id FROM Tag WHERE project=? and id=?", [parent_project_id, tag_id]).fetchone()
+        tag_check_row = DB.get_db().execute("SELECT id FROM Tag WHERE project=? and id=?",
+                                            [parent_project_id, tag_id]).fetchone()
 
         if not tag_check_row:
             raise ProjectTagNotFoundError("No Tag found with ID {} for Project ID {}".format(tag_id, parent_project_id))
@@ -1779,11 +1834,10 @@ class Moment:
         finally:
             return 'Tag {} assigned to Moment {}'.format(tag_id, self.id)
 
-    def remove_tag(self, tag_id:int):
+    def remove_tag(self, tag_id: int):
 
         if type(tag_id) != int:
             raise ValueError("Tag ID must be an integer")
-
 
         db = DB.get_db()
         db.execute("DELETE FROM MomentTag WHERE tag=?", [tag_id])
@@ -1791,12 +1845,14 @@ class Moment:
         self.refresh_tags()
         return 'Tag {} removed from Moment {}'.format(tag_id, self.id)
 
-    def add_comment(self, text, consultant:Consultant=None):
+    def add_comment(self, text, consultant: Consultant = None):
 
         if consultant:
 
             if not (Project(self.parent_participant.project_id).consultant_is_assigned(consultant) or consultant.admin):
-                raise ConsultantNotAssignedToProjectError("Consultant {} not assigned to Project {} - cannot add comment.".format(consultant.id, self.parent_participant.project_id))
+                raise ConsultantNotAssignedToProjectError(
+                    "Consultant {} not assigned to Project {} - cannot add comment.".format(consultant.id,
+                                                                                            self.parent_participant.project_id))
             author_id = consultant.id
             consultant_author = True
         else:
@@ -1814,13 +1870,12 @@ class Moment:
         return m
 
     @staticmethod
-    def add_new_to_db(participant_id:int, rating:int, text:str, gps_long:float, gps_lat:float, file_names:[]):
+    def add_new_to_db(participant_id: int, rating: int, text: str, gps_long: float, gps_lat: float, file_names: []):
 
         # # If a single filename is provided, rather than a list then simply convert to a list of one item
         # if file_names and type(file_names) != []:
         #
         #         file_names = [file_names]
-
 
         try:
             rating = int(rating)
@@ -1836,7 +1891,9 @@ class Moment:
 
             # Add new moment data to Moment table in DB
             db = DB.get_db()
-            cur = db.execute("INSERT INTO Moment VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",[None, participant_id, rating, text, gps_long, gps_lat, datetime.isoformat(datetime.utcnow()), datetime.isoformat(datetime.utcnow()), 1, None])
+            cur = db.execute("INSERT INTO Moment VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                             [None, participant_id, rating, text, gps_long, gps_lat,
+                              datetime.isoformat(datetime.utcnow()), datetime.isoformat(datetime.utcnow()), 1, None])
             new_moment_id = cur.lastrowid
 
             # check filenames are for acceptable file types and add if OK:
@@ -1847,7 +1904,8 @@ class Moment:
                     elif ".mov" in fn or ".m4v" in fn or ".mp4" in fn:
                         media_type = "video"
                     else:
-                        raise MomentMediaFormatError("Moment media files must be image (jpg/png or video (mov/mp4/m4v) format.")
+                        raise MomentMediaFormatError(
+                            "Moment media files must be image (jpg/png or video (mov/mp4/m4v) format.")
 
                     MomentMedia.add_new_to_db(new_moment_id, media_type, fn)
 
@@ -1909,7 +1967,7 @@ class Moment:
         path_to_moment_bundle = os.path.join(
             app.config['TEMP_FOLDER'],
             "projects",
-            str(self.parent_participant.project_id),"participants", "{}(ID{})".format(
+            str(self.parent_participant.project_id), "participants", "{}(ID{})".format(
                 self.parent_participant.within_project_number,
                 self.parent_participant_id),
             "moments",
@@ -1949,7 +2007,8 @@ class Moment:
             # Write Moment CSV
 
             with open(os.path.join(path_to_moment_bundle, "moment_{}.csv".format(self.id)), "w") as csv_file:
-                csv_file.write("id,project_id,parent_participant_id,rating,text,gps_long,gps_lat,added_ts,modified_ts,tags\n")
+                csv_file.write(
+                    "id,project_id,parent_participant_id,rating,text,gps_long,gps_lat,added_ts,modified_ts,tags\n")
                 csv_file.write("{},{},{},{},{},{},{},{},{},{}\n".format(
                     d['id'],
                     d['project_id'],
@@ -1967,7 +2026,8 @@ class Moment:
 
             if len(comments) > 0:
 
-                with open(os.path.join(path_to_moment_bundle, "moment_{}_comments.csv".format(self.id)), "w") as csv_file:
+                with open(os.path.join(path_to_moment_bundle, "moment_{}_comments.csv".format(self.id)),
+                          "w") as csv_file:
                     writer = csv.DictWriter(csv_file, comments[0].keys())
                     writer.writeheader()
                     for c in comments:
@@ -1975,7 +2035,7 @@ class Moment:
 
         # For each moment media, create a sub folder for its data and copy data into the sub folder
 
-        path_to_moment_data = os.path.join(path_to_moment_bundle,"moment_media")
+        path_to_moment_data = os.path.join(path_to_moment_bundle, "moment_media")
 
         for m in self.media:
             this_moment_path = os.path.join(path_to_moment_data, str(m.id))
@@ -2029,7 +2089,7 @@ class Moment:
             return path_to_moment_bundle
 
     @staticmethod
-    def get_moments_for_participant(participant_id:int, min_id=0, max_id=None, limit=None, order='desc'):
+    def get_moments_for_participant(participant_id: int, min_id=0, max_id=None, limit=None, order='desc'):
 
         moments_list = []
 
@@ -2061,7 +2121,6 @@ class Moment:
         if order.lower() not in ['asc', 'desc']:
             raise ValueError("order parameter value must be 'asc' or 'desc'")
 
-
         # Build criteria strings to limit results obtained
         if min_id and max_id:
             if min_id > max_id:
@@ -2081,7 +2140,9 @@ class Moment:
         if limit:
             limit_criteria = "LIMIT {}".format(limit)
 
-        moments_rows = DB.get_db().execute("SELECT id FROM Moment WHERE participant=? {} {} {} ".format(range_criteria, order_by, limit_criteria), [participant_id])
+        moments_rows = DB.get_db().execute(
+            "SELECT id FROM Moment WHERE participant=? {} {} {} ".format(range_criteria, order_by, limit_criteria),
+            [participant_id])
 
         for row in moments_rows:
             moments_list.append(Moment(int(row['id'])))
@@ -2096,10 +2157,12 @@ class Moment:
             highest_moment_id = None
 
         # Get count of moments below minimum:
-        moments_below = DB.get_db().execute("SELECT count(id) as num FROM Moment WHERE participant=? AND id < ?", [participant_id, lowest_moment_id]).fetchone()
+        moments_below = DB.get_db().execute("SELECT count(id) as num FROM Moment WHERE participant=? AND id < ?",
+                                            [participant_id, lowest_moment_id]).fetchone()
 
         # Get count of moments above maximum:
-        moments_above = DB.get_db().execute("SELECT count(id) as num FROM Moment WHERE participant=? AND id > ?", [participant_id, highest_moment_id]).fetchone()
+        moments_above = DB.get_db().execute("SELECT count(id) as num FROM Moment WHERE participant=? AND id > ?",
+                                            [participant_id, highest_moment_id]).fetchone()
 
         # Get count of all moments for participant:
         all_moments = DB.get_db().execute("SELECT count(id) as num FROM Moment WHERE participant=?",
@@ -2121,9 +2184,9 @@ class Moment:
         return moments_with_metadata
 
     @staticmethod
-    def get_moments_for_participant_json(participant_id:int, min_id=0, max_id=None, limit=None, order='desc'):
+    def get_moments_for_participant_json(participant_id: int, min_id=0, max_id=None, limit=None, order='desc'):
 
-        moments = Moment.get_moments_for_participant(participant_id, min_id, max_id , limit, order)
+        moments = Moment.get_moments_for_participant(participant_id, min_id, max_id, limit, order)
 
         moment_dicts = [m.to_dict() for m in moments['moments']]
 
@@ -2132,17 +2195,20 @@ class Moment:
         return json.dumps(moments, indent=4)
 
     @staticmethod
-    def exists_in_db(moment_id:int):
+    def exists_in_db(moment_id: int):
 
         moment_details = DB.get_db().execute("SELECT participant FROM Moment WHERE id=?", [moment_id]).fetchone()
 
         return True if moment_details else False
 
+
 class MomentMediaNotFoundError(Exception):
     pass
 
+
 class MomentMediaFormatError(Exception):
     pass
+
 
 class MomentMedia:
 
@@ -2153,7 +2219,9 @@ class MomentMedia:
         except ValueError:
             raise MomentMediaNotFoundError("MomentMedia ID must be an integer")
 
-        media_details = DB.get_db().execute("SELECT moment, original_filename, MediaType.description FROM MomentMedia, MediaType WHERE MomentMedia.media_type=MediaType.id AND MomentMedia.id=?",[self.__id]).fetchone()
+        media_details = DB.get_db().execute(
+            "SELECT moment, original_filename, MediaType.description FROM MomentMedia, MediaType WHERE MomentMedia.media_type=MediaType.id AND MomentMedia.id=?",
+            [self.__id]).fetchone()
 
         if not media_details:
             raise MomentMediaNotFoundError("No MomentMedia found with ID {}".format(id))
@@ -2172,19 +2240,19 @@ class MomentMedia:
 
     @property
     def media_file_path(self):
-        #return os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(self.parent_moment_id), str(self.id))
+        # return os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(self.parent_moment_id), str(self.id))
         # return os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(Moment(self.parent_moment_id).parent_participant.project_id),str(Moment(self.parent_moment_id).parent_participant_id) ,str(self.parent_moment_id), str(self.id))
         return os.path.join(
-                app.config['MOMENT_MEDIA_FOLDER'],
-                'projects',
-                str(Moment(self.parent_moment_id).parent_participant.project_id),
-                'participants',
-                str(Moment(self.parent_moment_id).parent_participant_id),
-                'moments',
-                str(self.parent_moment_id),
-                'moment_media',
-                str(self.id)
-            )
+            app.config['MOMENT_MEDIA_FOLDER'],
+            'projects',
+            str(Moment(self.parent_moment_id).parent_participant.project_id),
+            'participants',
+            str(Moment(self.parent_moment_id).parent_participant_id),
+            'moments',
+            str(self.parent_moment_id),
+            'moment_media',
+            str(self.id)
+        )
 
     @property
     def path_original(self):
@@ -2192,11 +2260,11 @@ class MomentMedia:
 
     @property
     def path_small_thumb(self):
-        return str(self.path_original.split(".")[0]) +  "_thumb_small.jpg"
+        return str(self.path_original.split(".")[0]) + "_thumb_small.jpg"
 
     @property
     def path_large_thumb(self):
-        return str(self.path_original.split(".")[0]) +  "_thumb_large.jpg"
+        return str(self.path_original.split(".")[0]) + "_thumb_large.jpg"
 
     @property
     def id(self):
@@ -2212,18 +2280,20 @@ class MomentMedia:
 
             original_file, original_file_ext = self.original_filename.split(".")
 
-            if not(original_file_ext.lower() == "jpg" or original_file_ext.lower() == "jpeg" or original_file_ext.lower() == "png"):
-                raise MomentMediaFormatError("MomentMedia image thumbnails can only be created from PNG or JPG originals.")
+            if not (
+                    original_file_ext.lower() == "jpg" or original_file_ext.lower() == "jpeg" or original_file_ext.lower() == "png"):
+                raise MomentMediaFormatError(
+                    "MomentMedia image thumbnails can only be created from PNG or JPG originals.")
 
             # Generate small thumbnail
             im = Image.open(os.path.join(self.media_file_path, self.original_filename))
-            im.thumbnail((128,128), Image.ANTIALIAS)
+            im.thumbnail((128, 128), Image.ANTIALIAS)
             small_thumb_filepath = os.path.join(self.media_file_path, original_file + "_thumb_small.jpg")
             im.save(small_thumb_filepath, "JPEG")
 
             # Generate large thumbnail
             im = Image.open(os.path.join(self.media_file_path, self.original_filename))
-            im.thumbnail((512,512), Image.ANTIALIAS)
+            im.thumbnail((512, 512), Image.ANTIALIAS)
             large_thumb_filepath = os.path.join(self.media_file_path, original_file + "_thumb_large.jpg")
             im.save(large_thumb_filepath, "JPEG")
 
@@ -2243,9 +2313,10 @@ class MomentMedia:
     @staticmethod
     def get_media_for_moment(moment_id):
 
-        media_list =[]
+        media_list = []
 
-        media_rows = DB.get_db().execute("SELECT id FROM MomentMedia WHERE moment=? order by id", [moment_id]).fetchall()
+        media_rows = DB.get_db().execute("SELECT id FROM MomentMedia WHERE moment=? order by id",
+                                         [moment_id]).fetchall()
 
         for row in media_rows:
             media_list.append(MomentMedia(int(row['id'])))
@@ -2259,8 +2330,9 @@ class MomentMedia:
 
             # Check if the moment exists:
             if not Moment.exists_in_db(moment_id):
-                raise MomentNotFoundError("No moment found in DB with ID {} - Cannot add moment media for this moment.".format(moment_id))
-                #pass
+                raise MomentNotFoundError(
+                    "No moment found in DB with ID {} - Cannot add moment media for this moment.".format(moment_id))
+                # pass
 
             # Check if file exists within upload folder - may not be there yet, not ready to copy over
             tmp_path = os.path.join(app.config['UPLOAD_FOLDER'], file_name)
@@ -2283,7 +2355,7 @@ class MomentMedia:
             new_id = cur.lastrowid
 
             # Create folder path for the media
-            #media_path = os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(moment_id), str(new_id))
+            # media_path = os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(moment_id), str(new_id))
             # media_path = os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(Moment(moment_id).parent_participant.project_id), str(Moment(moment_id).parent_participant_id), str(moment_id), str(new_id))
 
             media_path = os.path.join(
@@ -2330,8 +2402,10 @@ class MomentMedia:
     def to_json(self):
         return json.dumps(self.to_dict(), indent=4)
 
+
 class MomentCommentNotFoundError(Exception):
     pass
+
 
 class MomentComment:
 
@@ -2342,7 +2416,8 @@ class MomentComment:
         except ValueError:
             raise MomentCommentNotFoundError("MomentComment ID must be an integer")
 
-        comment_row = DB.get_db().execute("SELECT moment, author, consultant_author, text, ts FROM MomentComment WHERE id=?", [self.__id]).fetchone()
+        comment_row = DB.get_db().execute(
+            "SELECT moment, author, consultant_author, text, ts FROM MomentComment WHERE id=?", [self.__id]).fetchone()
 
         if not comment_row:
             raise MomentCommentNotFoundError("No MomentComment found with ID {}".format(self.__id))
@@ -2400,30 +2475,125 @@ class MomentComment:
         return json.dumps(self.to_dict(), indent=4)
 
     @staticmethod
-    def get_comments_for_moment(moment_id:int):
+    def get_comments_for_moment(moment_id: int):
 
-        return MomentComment.get_comments_for_moment_since(moment_id,0)
+        return MomentComment.get_comments_for_moment_since(moment_id, 0)
 
     @staticmethod
-    def get_comments_for_moment_json(moment_id:int):
+    def get_comments_for_moment_json(moment_id: int):
 
         return MomentComment.get_comments_for_moment_since_json(moment_id, 0)
 
     @staticmethod
-    def get_comments_for_moment_since(moment_id:int, since_id:int):
+    def get_comments_for_moment_ids(m_ids, exclude_comment_ids=None):
 
+        moment_ids = "("
+        if len(m_ids) > 0:
+            for id in m_ids:
+                moment_ids += "{},".format(id)
+
+        moment_ids = moment_ids.rstrip(',') + ")"
+
+        comment_ids = "("
+
+        if exclude_comment_ids and len(exclude_comment_ids) > 0:
+
+            for id in exclude_comment_ids:
+                comment_ids += "{},".format(id)
+
+        comment_ids = comment_ids.rstrip(',') + ")"
+
+
+        sql = "SELECT id FROM MomentComment WHERE moment in {} and id not in {}".format(moment_ids, comment_ids)
+
+        comment_list = []
+
+        comment_rows = DB.get_db().execute(sql).fetchall()
+
+        if comment_rows:
+            comment_list = [MomentComment(row['id']) for row in comment_rows]
+
+        return {
+            'count': len(comment_list),
+            'excluded_comment_ids': exclude_comment_ids,
+            'moment_ids': m_ids,
+            'comments': comment_list
+        }
+
+
+    @staticmethod
+    def get_comments_for_moment_ids_json(m_ids, exclude_comment_ids=None):
+
+        comments = MomentComment.get_comments_for_moment_ids(m_ids, exclude_comment_ids)
+        comment_dicts = [c.to_dict() for c in comments['comments']]
+        comments['comments'] = comment_dicts
+
+        return json.dumps(comments, indent=4)
+
+
+    @staticmethod
+    def get_comments_for_participant(participant_id: int, since_comment_id=0):
+
+        if since_comment_id:
+            try:
+                since_comment_id = int(since_comment_id)
+                if since_comment_id < 0:
+                    raise ValueError("since_comment_id value must be at least 0")
+            except ValueError:
+                raise ValueError("since_comment_id value must be an integer")
+        else:
+            since_comment_id = 0
+
+        comment_rows = DB.get_db().execute(
+            "SELECT MomentComment.id FROM MomentComment, Moment WHERE MomentComment.moment = Moment.id AND Moment.participant = ? AND MomentComment.id >= ? ORDER BY MomentComment.id ASC",
+            [participant_id, since_comment_id]).fetchall()
+
+        comment_list = [MomentComment(row['id']) for row in comment_rows]
+
+        max_comment_id = None
+        min_comment_id = None
+
+        if len(comment_list) > 0:
+            max_comment_id = comment_list[-1].id
+            min_comment_id = comment_list[0].id
+
+        return {
+            'count': len(comment_list),
+            'highest_comment_id': max_comment_id,
+            'lowest_comment_id': min_comment_id,
+            'participant_id': participant_id,
+            'comments': comment_list
+        }
+
+    @staticmethod
+    def get_comments_for_participant_json(participant_id, since_comment_id=0):
+
+        try:
+            comments = MomentComment.get_comments_for_participant(participant_id, since_comment_id)
+
+            comment_dicts = [c.to_dict() for c in comments['comments']]
+
+            comments['comments'] = comment_dicts
+
+            return json.dumps(comments, indent=4)
+        except ParticipantNotFoundError:
+            return json.dumps({"error_code": 101, "error_text": "No participant found with id {}".format(participant_id)}), 404
+
+    @staticmethod
+    def get_comments_for_moment_since(moment_id: int, since_id: int):
         cs = []
 
-        comment_rows = DB.get_db().execute("SELECT id FROM MomentComment WHERE moment=? AND id > ? ORDER BY id", [moment_id, since_id]).fetchall()
+        comment_rows = DB.get_db().execute("SELECT id FROM MomentComment WHERE moment=? AND id > ? ORDER BY id",
+                                           [moment_id, since_id]).fetchall()
 
         for row in comment_rows:
             cs.append(MomentComment(int(row['id'])))
 
         return cs
 
-    @staticmethod
-    def get_comments_for_moment_since_json(moment_id:int, since_id:int):
 
+    @staticmethod
+    def get_comments_for_moment_since_json(moment_id: int, since_id: int):
         c_dicts = []
 
         for c in MomentComment.get_comments_for_moment_since(moment_id, since_id):
@@ -2431,11 +2601,12 @@ class MomentComment:
 
         return json.dumps(c_dicts, indent=4)
 
-    @staticmethod
-    def add_new_to_db(moment_id, author_id, consultant_author:bool, text:str):
 
+    @staticmethod
+    def add_new_to_db(moment_id, author_id, consultant_author: bool, text: str):
         db = DB.get_db()
-        cur = db.execute("INSERT INTO MomentComment VALUES (?,?,?,?,?,?)", [None, moment_id, author_id, consultant_author, text, datetime.isoformat(datetime.utcnow()) ])
+        cur = db.execute("INSERT INTO MomentComment VALUES (?,?,?,?,?,?)",
+                         [None, moment_id, author_id, consultant_author, text, datetime.isoformat(datetime.utcnow())])
         db.commit()
         return MomentComment(int(cur.lastrowid))
 

@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, url_for
 from config import Config
 import os, json
 
@@ -17,6 +17,7 @@ app.config['TEMP_FOLDER'] = os.path.join(app.root_path, "temp")
 app.config['DOWNLOAD_BUNDLES_FOLDER'] = os.path.join(app.root_path, "project_data", "download_bundles")
 app.config['SUPPORT_DETAILS'] = {"contact_name": "Bunnyfoot Support", "contact_email": "support@bunnyfoot.com"}
 app.config['GOOGLE_MAPS_API_KEY'] = 'AIzaSyCQop7Ow0qProMtA53UjodYntMf7yaZozs'
+
 
 # Add endpoints
 from cxt_app import db_models, participant_routes, consultant_routes, api_routes

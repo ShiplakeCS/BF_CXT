@@ -1,11 +1,16 @@
-from flask import session, redirect, render_template, url_for, request, abort
+from flask import session, redirect, render_template, url_for, request, abort, send_from_directory
 from cxt_app import app, db_models
-import json
+import json, os
 
 
 @app.route('/')
 def index():
     return "Hello, world!"
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'),
+                               'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 def remove_active_particiant():
     if 'active_participant_id' in session:
@@ -16,6 +21,8 @@ def get_active_participant():
         return db_models.Participant(session['active_participant_id'])
     else:
         return None
+
+
 
 
 # General routes
@@ -101,7 +108,7 @@ def participant_moments():
 
     project = db_models.Project(participant.project_id)
 
-    return render_template('participant/moments.html', participant_id=participant.id, researcher_details={'name':project.consultants[0].display_name, 'email':project.consultants[0].email}, support_details={'contact_email':app.config['SUPPORT_DETAILS']['contact_email'], 'contact_name':app.config['SUPPORT_DETAILS']['contact_email']}, onload='load_participant_moments({})'.format(participant.id))
+    return render_template('participant/moments.html', participant_id=participant.id, researcher_details={'name':project.consultants[0].display_name, 'email':project.consultants[0].email}, support_details={'contact_email':app.config['SUPPORT_DETAILS']['contact_email'], 'contact_name':app.config['SUPPORT_DETAILS']['contact_email']}, onload='start_moments_and_comments_feed_ajax({})'.format(participant.id))
 
 
 
