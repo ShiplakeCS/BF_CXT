@@ -1859,9 +1859,9 @@ class Moment:
             author_id = self.parent_participant_id
             consultant_author = False
 
-        MomentComment.add_new_to_db(self.id, author_id, consultant_author, text)
+        mc = MomentComment.add_new_to_db(self.id, author_id, consultant_author, text)
         self.refresh_comments()
-        return 'Comment added'
+        return mc.id
 
     def add_media(self, media_type, file_name):
 

@@ -33,4 +33,38 @@ def new_project_with_participants():
     print("Added test project {}".format(test_project.id))
 
 
+def add_moment_to_participant(participant_id):
+
+
+    p = Participant(participant_id)
+
+    moment_rating = random.randint(1, 5)
+
+    p.add_moment(moment_rating, "Test moment {}".format(datetime.isoformat(datetime.utcnow())), None, None, None)
+
+    latest_moment = p.moments[0]
+    latest_moment.add_comment("Comment added by test routine", Project(p.project_id).consultants[0])
+    latest_moment.add_comment("Another comment added by test routine")
+
+
+def add_moment_to_project(project_id):
+
+    test_project = Project(project_id)
+
+    for p in test_project.participants:
+
+        for i in range(3):
+
+            shutil.copy(os.path.join(app.root_path, "static", "images", 'moment_media_placeholder.png'), os.path.join(app.config['UPLOAD_FOLDER']))
+
+            moment_rating = random.randint(1,5)
+
+            p.add_moment(moment_rating, "Test moment {}".format(i), None, None, ['moment_media_placeholder.png'])
+
+
+        for m in p.moments:
+            m.add_comment("Hello!", test_project.consultants[0])
+            m.add_comment("Hi there!")
+
+    print("Added moments for project {}".format(test_project.id))
 

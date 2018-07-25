@@ -1,6 +1,6 @@
-from flask import session, abort, request, send_file, send_from_directory
+from flask import session, abort, request, send_file, redirect, url_for
 from datetime import datetime
-from cxt_app import app, db_models
+from cxt_app import app, db_models, tests
 import json
 
 # Read for more details on builing an API, particularly its routes: https://www.restapitutorial.com/index.html
@@ -153,6 +153,20 @@ def get_participant_moment_media(p_id, moment_id, media_id, size):
     else:
         abort(401)
 
+
+@app.route('/api/participants/<p_id>/moments/<moment_id>/comments/', methods=['post'])
+def add_participant_moment_comment(p_id, moment_id):
+
+    if auth_participant(p_id):
+
+        comment_text = request.values['text']
+        if len(comment_text) > 0:
+            new_comment_id = db_models.Moment(moment_id).add_comment(comment_text)
+            return json.dumps({'new_comment_id':new_comment_id})
+        else:
+            abort(400)
+    else:
+        abort(401)
 
 ## Project routes
 
@@ -365,3 +379,26 @@ def get_comments_count(participant_id):
     ]
 
     return json.dumps(counts)
+
+@app.route('/tests/participants/<p_id>/add_moment')
+def test_participant_add_moment(p_id):
+
+    tests.add_moment_to_participant(p_id)
+    m = db_models.Participant(p_id).moments[0]
+    return json.dumps(m.to_dict(), indent=4)
+
+
+@app.route('/tests/projects/<proj_id>/add_moments')
+def test_projects_add_moments(proj_id):
+
+    tests.add_moment_to_project(proj_id)
+
+    moments = []
+
+    for p in db_models.Project(proj_id).participants:
+
+        participant_moments = db_models.Moment.get_moments_for_participant(p.id)['moments']
+
+        moments.append([m.to_dict() for m in participant_moments])
+
+    return json.dumps(moments,indent=4)
