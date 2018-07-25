@@ -32,7 +32,8 @@ def participant_home():
     p = get_active_participant()
 
     if p == None:
-        return render_template('participant/not_auth.html', hide_nav_links=True)
+        page_data = {}
+        return render_template('participant/not_auth.html', hide_nav_links=True, page_data=page_data)
 
     else:
         # redirect to moments feed
@@ -45,19 +46,24 @@ def participant_login(participant_url_key):
 
     remove_active_particiant()
 
+    page_data = {'support_details': app.config['SUPPORT_DETAILS']}
+
     participant_url_key = participant_url_key.replace("-", "%2D")
 
     basic_project_info = db_models.Participant.get_basic_info_from_login_url(participant_url_key)
 
     if basic_project_info != None:
 
+        page_data['researcher_details'] = {
+            'name': basic_project_info['consultant_name'],
+            'email': basic_project_info['consultant_email']}
+
         if request.method == 'GET':
         # Check that participant URL is valid and not expired
 
             return render_template('participant/participant_login.html', hide_nav_links=True,
                                    participant_url_key=participant_url_key,
-                                   researcher_details={'name': basic_project_info['consultant_name'],
-                                                       'email': basic_project_info['consultant_email']})
+                                   page_data=page_data)
 
 
         elif request.method == "POST":
@@ -71,28 +77,30 @@ def participant_login(participant_url_key):
                 return redirect(url_for('participant_home'))
 
             except db_models.ParticipantLoginFailed:
-                return render_template('participant/participant_login.html', hide_nav_links=True, participant_url_key=participant_url_key, pin_error=True, researcher_details={'name':basic_project_info['consultant_name'], 'email':basic_project_info['consultant_email']})
+
+                return render_template('participant/participant_login.html', hide_nav_links=True, participant_url_key=participant_url_key, pin_error=True, page_data=page_data)
 
             except db_models.ParticipantNotActive:
-                return render_template('participant/error.html', hide_nav_links=True, error_messages=["We're really sorry but your PIN seems to have expired.", "If you believe that this is a mistake and that you should still be able to take part in your research then please contact your researcher by replying to the email that contained your link to this project."], support_details=app.config['SUPPORT_DETAILS'], participant_url_key=participant_url_key), 403
+                return render_template('participant/error.html', hide_nav_links=True, error_messages=["We're really sorry but your PIN seems to have expired.", "If you believe that this is a mistake and that you should still be able to take part in your research then please contact your researcher by replying to the email that contained your link to this project."], page_data=page_data, participant_url_key=participant_url_key), 403
 
             except Exception as e:
-                return render_template('participant/participant_login.html', hide_nav_links=True)
+                return render_template('participant/participant_login.html', hide_nav_links=True, page_data=page_data)
 
 
     else:
         return render_template('participant/error.html', hide_nav_links=True, error_messages=[
             "We could not find any research projects that match the URL you have entered.",
-            "If you believe that you should be able to access this project then please check that you haven't been sent a more recent login URL via email."],
-                               support_details=app.config['SUPPORT_DETAILS'],
-                               participant_url_key=participant_url_key), 404
+            "If you believe that you should be able to access this project then please check that you haven't been sent a more recent login URL via email."],page_data=page_data, participant_url_key=participant_url_key), 404
 
 
 @app.route('/p/logout')
 def participant_logout():
 
     remove_active_particiant()
-    return render_template('participant/logout.html', hide_nav_links=True)
+    page_data = {
+        'support_details': app.config['SUPPORT_DETAILS']
+    }
+    return render_template('participant/logout.html', hide_nav_links=True, page_data=page_data)
 
 
 # Moments feed
@@ -108,8 +116,33 @@ def participant_moments():
 
     project = db_models.Project(participant.project_id)
 
-    return render_template('participant/moments.html', participant_id=participant.id, researcher_details={'name':project.consultants[0].display_name, 'email':project.consultants[0].email}, support_details={'contact_email':app.config['SUPPORT_DETAILS']['contact_email'], 'contact_name':app.config['SUPPORT_DETAILS']['contact_email']}, onload='start_moments_and_comments_feed_ajax({})'.format(participant.id))
+    page_data = {
+        'participant_id': participant.id,
+        'researcher_details': {'name':project.consultants[0].display_name, 'email':project.consultants[0].email},
+        'support_details': app.config['SUPPORT_DETAILS'],
+        'onload':'start_moments_and_comments_feed_ajax({})'.format(participant.id)
+    }
 
+    return render_template('participant/moments.html', page_data=page_data)
+
+@app.route('/p/capture')
+def participant_moment_capture():
+
+    participant = get_active_participant()
+
+    project = db_models.Project(participant.project_id)
+
+    page_data = {
+        'participant_id': participant.id,
+        'researcher_details': {'name':project.consultants[0].display_name, 'email':project.consultants[0].email},
+        'support_details': app.config['SUPPORT_DETAILS'],
+        'onload':None
+    }
+
+    if participant == None:
+        return render_template('participant/not_auth.html', hide_nav_links=True)
+
+    return render_template('participant/capture_moment.html', page_data=page_data)
 
 
 """

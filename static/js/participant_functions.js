@@ -24,7 +24,7 @@ function render_moment_html(m) {
     var modified_date = new Date(m.modified_ts + "Z");
 
     moment_html += '<div class="card-header small"> ' +
-        '<span class="float-left">' + modified_date.toLocaleDateString() + ' ' + modified_date.getHours() + ':' + modified_date.getMinutes() + '</span>' +
+        '<span class="float-left">' + modified_date.toLocaleDateString() + ' ' + String(modified_date.getHours()).padStart(2,"0") + ':' + String(modified_date.getMinutes()).padStart(2,"0") + '</span>' +
         '<span class="float-right text-muted" style="font-family:sans-serif">';
 
     // Generate ratings stars: Filled in stars
@@ -70,8 +70,8 @@ function render_moment_html(m) {
 
     moment_html += '<div class="card-footer small">' +
         '<span id = "moment_' + m.id + '_new_comment_indicator" class="text-info d-none">&#9679;</span>'+
-        '<button id="moment_' + m.id + '_show_comments_button" data-toggle="collapse" data-target="#moment_' + m.id + '_comments">' +
-        'Comments (<span id="moment_'+ m.id +'_comments_count_label">0</span>)</button>' +
+        '<button id="moment_' + m.id + '_show_comments_button" data-toggle="collapse" data-target="#moment_' + m.id + '_comments" class="btn btn-secondary btn-sm">' +
+        'Comments <span id="moment_'+ m.id +'_comments_count_label" class="badge badge-light">0</span></button>' +
         '<div id="moment_' + m.id + '_comments" class="mt-2 collapse">' +
         '<div id="moment_' + m.id + '_comments_form">'+
         '<div>\n' +
@@ -218,7 +218,7 @@ function render_comment_html(c) {
 
     var comment_html = '<div class="card mb-2" id="moment_' + c.parent_moment+ '_comment_' + c.id + '">';
     comment_html += '<div class="card-body"><div class="card-title">';
-    comment_html += '<span class="font-weight-bold">' + display_name + '</span><br/>' + comment_ts.toLocaleDateString() + ' ' + comment_ts.getHours() + ':' + comment_ts.getMinutes();
+    comment_html += '<span class="font-weight-bold">' + display_name + '</span><br/>' + comment_ts.toLocaleDateString() + ' ' + String(comment_ts.getHours()).padStart(2,"0") + ':' + String(comment_ts.getMinutes()).padStart(2,"0");
     comment_html += '</div>';
     comment_html += '<p class="card-text">'+c.text+'</p>\n';
         comment_html += '</div>';
@@ -227,7 +227,7 @@ function render_comment_html(c) {
     return comment_html;
 }
 
-function append_comment_to_moment(c, hide_notification=false) {
+function append_comment_to_moment(c, hide_notification=false, animate=false) {
 
     var target_comment_form = '#moment_' + c.parent_moment + '_comments_form';
     // find moment div for comment's parent moment and append to div before button
@@ -239,12 +239,30 @@ function append_comment_to_moment(c, hide_notification=false) {
 
     // show moment's new comment indicator
     if (!hide_notification){
-        var target_indicator_label = '#moment_' + c.parent_moment + '_new_comment_indicator';
-        $(target_indicator_label).removeClass('d-none');
+
+        var target_comments_button = '#moment_' + c.parent_moment + '_show_comments_button';
+        $(target_comments_button).removeClass('btn-secondary');
+        $(target_comments_button).addClass('btn-info');
+
         $('#moment_'+c.parent_moment).find('.card-footer').click(function (){
-            $(target_indicator_label).addClass('d-none');
+            $(target_comments_button).removeClass('btn-info');
+            $(target_comments_button).addClass('btn-secondary');
         });
+
+        // var target_indicator_label = '#moment_' + c.parent_moment + '_new_comment_indicator';
+        // $(target_indicator_label).removeClass('d-none');
+        // $('#moment_'+c.parent_moment).find('.card-footer').click(function (){
+        //     $(target_indicator_label).addClass('d-none');
+        // });
     }
+
+    if (animate){
+        $('#moment_'+c.parent_moment+'_comment_'+c.id).addClass('d-none');
+        $('#moment_'+c.parent_moment+'_comment_'+c.id).slideUp('fast');
+        $('#moment_'+c.parent_moment+'_comment_'+c.id).removeClass('d-none');
+        $('#moment_'+c.parent_moment+'_comment_'+c.id).slideDown('fast');
+    }
+
 }
 
 function get_moment_comments(p_id, first_run=false, hide_notification=false) {

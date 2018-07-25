@@ -3,15 +3,18 @@
 {% block content %}
 
     <form>
-        <input type="hidden" id="participant_id" name="participant_id" value="{{ participant_id }}">
+        <input type="hidden" id="participant_id" name="participant_id" value="{{ page_data.participant_id }}">
     </form>
+    <header>
+        <h2 class="mb-4">My moments</h2>
+    </header>
 
     <div id="moments">
 
     </div>
 
     <nav class="navbar navbar-expand-sm bg-light navbar-light fixed-bottom mx-auto">
-        <a href="/p/capture_moment" class="btn btn-success btn-block btn-lg" role="button">Capture Moment</a>
+        <a href="/p/capture" class="btn btn-success btn-block btn-lg" role="button">Capture Moment</a>
     </nav>
 
 
