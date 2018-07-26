@@ -694,8 +694,8 @@ class Participant:
             db.rollback()
             raise e
 
-    def add_moment(self, rating, text, gps_long, gps_lat, file_names=[]):
-        new_moment = Moment.add_new_to_db(self.id, rating, text, gps_long, gps_lat, file_names)
+    def add_moment(self, rating: int, text: str, gps_long: float, gps_lat: float, file_names: object = [], location_status=None):
+        new_moment = Moment.add_new_to_db(self.id, rating, text, gps_long, gps_lat, file_names, location_status)
         self.refresh_moments()
         return new_moment
 
@@ -1870,20 +1870,25 @@ class Moment:
         return m
 
     @staticmethod
-    def add_new_to_db(participant_id: int, rating: int, text: str, gps_long: float, gps_lat: float, file_names: []):
+    def add_new_to_db(participant_id: int, rating: int, text: str, gps_long: float, gps_lat: float, file_names: [], location_status=None):
 
         # # If a single filename is provided, rather than a list then simply convert to a list of one item
         # if file_names and type(file_names) != []:
         #
         #         file_names = [file_names]
 
+        # TODO: Add interpretation of location_status. This could be:
+        #  NotAttempted - the user hasn't asked for location to be stored
+        #  AttemptedButFailed - location wasn't available from the browser, try to get it from uploaded images (if any)
+        #  Revoked - user explicitly removed location data, so do not include it.
+
         try:
             rating = int(rating)
-            if rating < 1 or rating > 5:
+            if rating < 0 or rating > 5:  # Allow 0 star ratings
                 raise ValueError
 
         except ValueError:
-            raise MomentRatingValueError("Moment ratings must be integers between 1 and 5.")
+            raise MomentRatingValueError("Moment ratings must be integers between 0 and 5.")
 
         try:
             # check participant ID exists:

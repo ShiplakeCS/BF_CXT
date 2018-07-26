@@ -1,4 +1,5 @@
 from flask import session, redirect, render_template, url_for, request, abort, send_from_directory
+from werkzeug.utils import secure_filename
 from cxt_app import app, db_models
 import json, os
 
@@ -125,24 +126,74 @@ def participant_moments():
 
     return render_template('participant/moments.html', page_data=page_data)
 
-@app.route('/p/capture')
+@app.route('/p/capture', methods=['GET', 'POST'])
 def participant_moment_capture():
 
     participant = get_active_participant()
 
-    project = db_models.Project(participant.project_id)
-
-    page_data = {
-        'participant_id': participant.id,
-        'researcher_details': {'name':project.consultants[0].display_name, 'email':project.consultants[0].email},
-        'support_details': app.config['SUPPORT_DETAILS'],
-        'onload':None
-    }
-
     if participant == None:
         return render_template('participant/not_auth.html', hide_nav_links=True)
 
-    return render_template('participant/capture_moment.html', page_data=page_data)
+    if request.method == 'GET':
+
+        project = db_models.Project(participant.project_id)
+
+        page_data = {
+            'participant_id': participant.id,
+            'researcher_details': {'name':project.consultants[0].display_name, 'email':project.consultants[0].email},
+            'support_details': app.config['SUPPORT_DETAILS'],
+            'onload':None
+        }
+
+        return render_template('participant/capture_moment.html', page_data=page_data)
+
+    elif request.method == 'POST':
+
+        location_status = None
+
+        try:
+            gps_long = float(request.form['gps_long'])
+            gps_lat = float(request.form['gps_lat'])
+
+        except ValueError:
+            gps_long = None
+            gps_lat = None
+            location_status = request.form['gps_long']
+
+        new_moment = participant.add_moment(int(request.form['rating']), request.form['text_comment'], gps_long, gps_lat, [], location_status)
+
+        #return new_moment.to_json()   # Useful if posting data via AJAX and need to wait for response data before moving on
+        return redirect(url_for('participant_moments'))
+
+@app.route('/p/capture/media', methods=['POST'])
+def participant_moment_capture_media():
+
+    # receive the uploaded file and save in temporary file folder
+    participant = get_active_participant()
+
+    if participant == None:
+        abort(401)
+
+    # Make path within temporary folder to save uploaded file
+    temp_folder_path = os.path.join(app.config['UPLOAD_FOLDER'], str(participant.id))
+    os.makedirs(temp_folder_path, exist_ok=True)
+
+    try:
+        uploaded_files = request.files.getlist("file[]")
+        temp_file_path_list = []
+
+        for file in uploaded_files:
+            if file.filename[-3:].upper() in ['PNG', 'JPG', 'MOV', 'MP4', 'M4V'] or file.filename[-4:].upper() in ['JPEG']:
+                filename = secure_filename(file.filename)
+                file.save(os.path.join(temp_folder_path, filename))
+                temp_file_path_list.append({'file':str(os.path.join(str(participant.id), filename))})
+            else:
+                temp_file_path_list.append({'error':'Uploaded files must end in .png, .jpg, .jpeg, .mov, .mp4 or .m4v', 'error_code':'501', 'filename': file.filename})
+        return json.dumps({'files':temp_file_path_list})
+
+    except NameError:
+        return json.dumps(
+            {'error': 'No files uploaded', 'error_code': '502'}), 401
 
 
 """

@@ -1,4 +1,4 @@
-function start_moments_and_comments_feed_ajax(p_id){
+function start_moments_and_comments_feed_ajax(p_id) {
 
     var callback_interval_sec = 10;
 
@@ -24,7 +24,7 @@ function render_moment_html(m) {
     var modified_date = new Date(m.modified_ts + "Z");
 
     moment_html += '<div class="card-header small"> ' +
-        '<span class="float-left">' + modified_date.toLocaleDateString() + ' ' + String(modified_date.getHours()).padStart(2,"0") + ':' + String(modified_date.getMinutes()).padStart(2,"0") + '</span>' +
+        '<span class="float-left">' + modified_date.toLocaleDateString() + ' ' + String(modified_date.getHours()).padStart(2, "0") + ':' + String(modified_date.getMinutes()).padStart(2, "0") + '</span>' +
         '<span class="float-right text-muted" style="font-family:sans-serif">';
 
     // Generate ratings stars: Filled in stars
@@ -69,15 +69,15 @@ function render_moment_html(m) {
     // generate moment card footer as placeholder for comments
 
     moment_html += '<div class="card-footer small">' +
-        '<span id = "moment_' + m.id + '_new_comment_indicator" class="text-info d-none">&#9679;</span>'+
+        '<span id = "moment_' + m.id + '_new_comment_indicator" class="text-info d-none">&#9679;</span>' +
         '<button id="moment_' + m.id + '_show_comments_button" data-toggle="collapse" data-target="#moment_' + m.id + '_comments" class="btn btn-secondary btn-sm">' +
-        'Comments <span id="moment_'+ m.id +'_comments_count_label" class="badge badge-light">0</span></button>' +
+        'Comments <span id="moment_' + m.id + '_comments_count_label" class="badge badge-light">0</span></button>' +
         '<div id="moment_' + m.id + '_comments" class="mt-2 collapse">' +
-        '<div id="moment_' + m.id + '_comments_form">'+
+        '<div id="moment_' + m.id + '_comments_form">' +
         '<div>\n' +
         '<label for="new_comment">Add comment:</label>\n' +
-        '<textarea id="moment_'+m.id+'_new_comment" class="form-control mb-2" rows="2" name="comment_text"></textarea><button id="moment_'+m.id+'_save_comment_button" class="btn btn-info btn-sm btn-block text-light" onclick=process_new_comment(' + m.id + ',' + m.parent_participant_id + ')>Save comment</button>\n' +
-        '</div>'+
+        '<textarea id="moment_' + m.id + '_new_comment" class="form-control mb-2" rows="2" name="comment_text"></textarea><button id="moment_' + m.id + '_save_comment_button" class="btn btn-info btn-sm btn-block text-light" onclick=process_new_comment(' + m.id + ',' + m.parent_participant_id + ')>Save comment</button>\n' +
+        '</div>' +
         '</div></div></div>';
 
     moment_html += '</div>';
@@ -171,7 +171,7 @@ function get_new_moments(p_id, limit = 20) {
                     sessionStorage.moments_displayed += new_moments.moments[i].id + ',';
 
                     // update highest_moment_id in sessionStorage
-                    if (new_moments.moments[i].id > parseInt(sessionStorage.highest_moment_id)){
+                    if (new_moments.moments[i].id > parseInt(sessionStorage.highest_moment_id)) {
                         sessionStorage.highest_moment_id = new_moments.moments[i].id;
                     }
 
@@ -209,25 +209,25 @@ function render_comment_html(c) {
 
     var comment_ts = new Date(c.ts + "Z");
 
-    if (c.consultant_author){
+    if (c.consultant_author) {
         var display_name = c.display_name;
     }
     else {
         display_name = "You";
     }
 
-    var comment_html = '<div class="card mb-2" id="moment_' + c.parent_moment+ '_comment_' + c.id + '">';
+    var comment_html = '<div class="card mb-2" id="moment_' + c.parent_moment + '_comment_' + c.id + '">';
     comment_html += '<div class="card-body"><div class="card-title">';
-    comment_html += '<span class="font-weight-bold">' + display_name + '</span><br/>' + comment_ts.toLocaleDateString() + ' ' + String(comment_ts.getHours()).padStart(2,"0") + ':' + String(comment_ts.getMinutes()).padStart(2,"0");
+    comment_html += '<span class="font-weight-bold">' + display_name + '</span><br/>' + comment_ts.toLocaleDateString() + ' ' + String(comment_ts.getHours()).padStart(2, "0") + ':' + String(comment_ts.getMinutes()).padStart(2, "0");
     comment_html += '</div>';
-    comment_html += '<p class="card-text">'+c.text+'</p>\n';
-        comment_html += '</div>';
+    comment_html += '<p class="card-text">' + c.text + '</p>\n';
+    comment_html += '</div>';
     comment_html += '</div>';
 
     return comment_html;
 }
 
-function append_comment_to_moment(c, hide_notification=false, animate=false) {
+function append_comment_to_moment(c, hide_notification = false, animate = false) {
 
     var target_comment_form = '#moment_' + c.parent_moment + '_comments_form';
     // find moment div for comment's parent moment and append to div before button
@@ -238,13 +238,13 @@ function append_comment_to_moment(c, hide_notification=false, animate=false) {
     $(target_count_label).text(parseInt($(target_count_label).text()) + 1);
 
     // show moment's new comment indicator
-    if (!hide_notification){
+    if (!hide_notification) {
 
         var target_comments_button = '#moment_' + c.parent_moment + '_show_comments_button';
         $(target_comments_button).removeClass('btn-secondary');
         $(target_comments_button).addClass('btn-info');
 
-        $('#moment_'+c.parent_moment).find('.card-footer').click(function (){
+        $('#moment_' + c.parent_moment).find('.card-footer').click(function () {
             $(target_comments_button).removeClass('btn-info');
             $(target_comments_button).addClass('btn-secondary');
         });
@@ -256,27 +256,27 @@ function append_comment_to_moment(c, hide_notification=false, animate=false) {
         // });
     }
 
-    if (animate){
-        $('#moment_'+c.parent_moment+'_comment_'+c.id).addClass('d-none');
-        $('#moment_'+c.parent_moment+'_comment_'+c.id).slideUp('fast');
-        $('#moment_'+c.parent_moment+'_comment_'+c.id).removeClass('d-none');
-        $('#moment_'+c.parent_moment+'_comment_'+c.id).slideDown('fast');
+    if (animate) {
+        $('#moment_' + c.parent_moment + '_comment_' + c.id).addClass('d-none');
+        $('#moment_' + c.parent_moment + '_comment_' + c.id).slideUp('fast');
+        $('#moment_' + c.parent_moment + '_comment_' + c.id).removeClass('d-none');
+        $('#moment_' + c.parent_moment + '_comment_' + c.id).slideDown('fast');
     }
 
 }
 
-function get_moment_comments(p_id, first_run=false, hide_notification=false) {
+function get_moment_comments(p_id, first_run = false, hide_notification = false) {
 
     if (!sessionStorage.highest_comment_id) {
         sessionStorage.highest_comment_id = 0;
     }
-    else if (sessionStorage.highest_comment_id=='null'){
+    else if (sessionStorage.highest_comment_id == 'null') {
         sessionStorage.highest_comment_id = 0;
     }
 
-    if (first_run){
+    if (first_run) {
         sessionStorage.highest_comment_id = 0;
-        hide_notification=true;
+        hide_notification = true;
     }
 
     var xhr = new XMLHttpRequest();
@@ -298,9 +298,9 @@ function get_moment_comments(p_id, first_run=false, hide_notification=false) {
             }
 
             // update highest_comment_id for next call
-            if (participant_comments.count > 0){
+            if (participant_comments.count > 0) {
                 sessionStorage.highest_comment_id = participant_comments.highest_comment_id;
-                if (!hide_notification){
+                if (!hide_notification) {
                     // Show alert that new comments found
                     var alert_html = '<div class="alert alert-info alert-dismissible"><button type="button" class="close" data-dismiss="alert">&times;</button>You have new comments.</div>';
 
@@ -312,7 +312,6 @@ function get_moment_comments(p_id, first_run=false, hide_notification=false) {
     }
     // Make ajax call to get comments
     xhr.open('GET', '/api/participants/' + p_id + '/moments/comments/?moment_ids=' + sessionStorage.moments_displayed + '&exclude_comment_ids=' + sessionStorage.comments_displayed, true);
-
 
 
     xhr.send(null);
@@ -345,5 +344,104 @@ function process_new_comment(moment_id, participant_id) {
         });
     }
 
+
+}
+
+function get_location_for_moment_capture() {
+
+    console.log('get_location triggered');
+    $('#location').find('button').remove();
+    $('#location').append("<div><span class='text-muted align-middle'>Getting location...</span><img src='/static/images/getting_location_animation.gif' class='ml-2' height='18px width='18px'></div>");
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(location_success, location_fail);
+    } else {
+        $('#location').find('button').remove();
+        $('#location').append('<span class="text-warning">Your browser doesn\'t appear to support location services.</span>');
+    }
+
+    function location_success(position) {
+        $('#gps_lat').val(position.coords.latitude);
+        $('#gps_long').val(position.coords.longitude);
+        sessionStorage.gps_long = position.coords.longitude;
+        sessionStorage.gps_lat = position.coords.latitude;
+        $('#location').find('div').remove();
+        $('#location').append("<div><span class='text-success align-middle'>Location captured</span> <a href='#' class='btn-sm btn-light ml-2'>remove</a></div>");
+        $('#location').find('a').click(function (e) {
+            e.preventDefault();
+            revoke_location_from_moment_capture();
+        })
+
+    }
+
+    function location_fail(position) {
+        $('#gps_lat').val('AttemptedButFailed');
+        $('#gps_long').val('AttemptedButFailed');
+    }
+}
+
+function revoke_location_from_moment_capture() {
+    $('#gps_lat').val('Revoked');
+    $('#gps_long').val('Revoked');
+    $('#location').html('<p>Would you like to record your present location?</p><button class="btn btn-secondary btn-sm">Get location</button>');
+}
+
+function upload_moment_media() {
+
+    // Variable to store your files
+    var files;
+
+// Add events
+    $('input[type=file]').on('change', prepareUpload);
+
+// Grab the files and set them to our variable
+    function prepareUpload(event) {
+        files = event.target.files;
+        console.log(files);
+    }
+
+    $('form#file_upload_form').on('submit', uploadFiles);
+
+// Catch the form submit and upload the files
+    function uploadFiles(event) {
+        //event.stopPropagation(); // Stop stuff happening
+        event.preventDefault(); // Totally stop stuff happening
+
+        console.log('interrupting submit');
+
+        // START A LOADING SPINNER HERE
+
+        // Create a formdata object and add the files
+        var data = new FormData();
+        $.each(files, function (key, value) {
+            data.append(key, value);
+        });
+
+        $.ajax({
+            url: '/p/capture/media/',
+            type: 'POST',
+            data: data,
+            cache: false,
+            dataType: 'json',
+            processData: false, // Don't process the files
+            contentType: false, // Set content type to false as jQuery will tell the server its a query string request
+            success: function (data, textStatus, jqXHR) {
+                if (typeof data.error === 'undefined') {
+                    // Success so call function to process the form
+                    console.log(data);
+                    // submitForm(event, data);
+                }
+                else {
+                    // Handle errors here
+                    console.log('ERRORS: ' + data.error);
+                }
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Handle errors here
+                console.log('ERRORS: ' + textStatus);
+                // STOP LOADING SPINNER
+            }
+        });
+    }
 
 }

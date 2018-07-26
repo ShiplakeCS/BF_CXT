@@ -2,7 +2,30 @@
 
 {% block content %}
 
+    <!--<script src="/static/js/jquery-fileupload.min.js"></script>-->
+
     <script>
+
+        $(document).ready(function () {
+
+            //clear_bottom_margin();
+            $('#location').find('button').click(function (e) {
+                e.preventDefault();
+                get_location_for_moment_capture();
+            })
+
+            // FILE UPLOADER - https://abandon.ie/notebook/simple-file-uploads-using-jquery-ajax
+            // Variable to store your files
+            var files;
+            // Add events
+            $('input[type=file]').on('change', prepareUpload);
+
+            // Grab the files and set them to our variable
+            function prepareUpload(event) {
+                files = event.target.files;
+                console.log(files);
+            }
+        });
 
         function clear_bottom_margin() {
             $(".container-fluid").css('margin-bottom', '20px')
@@ -40,12 +63,16 @@
 
             console.log(value);
         }
+
+
     </script>
     <header>
         <h2>Add a moment</h2>
     </header>
-    <form onload="clear_bottom_margin()">
-        <input type="hidden" id="rating" name="rating" value="">
+    <form id="moment_capture_form" action="/p/capture" , method="post">
+        <input type="hidden" id="rating" name="rating" value="0">
+        <input type="hidden" id="gps_long" name="gps_long" value="NotAttempted">
+        <input type="hidden" id="gps_lat" name="gps_lat" value="NotAttempted">
         <div id="star_rating">
             <p class="mb-1 mt-3">How would you rate this moment?</p>
             <div id="star_rating_controls"
@@ -68,28 +95,34 @@
 
         <div id="location" class="mt-4">
             <p>Would you like to record your present location?</p>
-            <button class="btn btn-primary">Get location</button>
+            <button class="btn btn-secondary btn-sm">Get location</button>
         </div>
-
-        <div id="media" class="mt-4">
-            <p>Would you like to add a photo or video?</p>
-            <button class="btn btn-primary">Add photo or video</button>
-        </div>
-
-
-        <div id="cancel_button" class="mt-4">
-            <!--<p>All done! Press the button below to save your moment.</p>-->
-            <a href="/p/moments" class="btn btn-secondary btn-block btn-sm" role="button">Cancel and return to
-                moments</a>
-        </div>
-
-
-        <div class="navbar navbar-expand-sm bg-light navbar-light fixed-bottom mx-auto">
-
-            <input type="submit" class="btn btn-success btn-block btn-lg" value="Save moment">
-        </div>
-
     </form>
+    <div id="media" class="mt-4">
+        <form id="file_upload_form" action="/p/capture/media" method="post" enctype="multipart/form-data">
+
+            <p>Would you like to add a photo or video?</p>
+            <input type="file" name="file[]" multiple="" class="form-control">
+            <input type="submit" value="Upload file" class="form-control">
+            <br>
+
+            <button class="btn btn-secondary btn-sm">Add photo or video</button>
+
+        </form>
+    </div>
+    <div id="cancel_button" class="mt-4">
+        <a href="/p/moments" class="btn btn-block btn-sm btn-link" role="button">Cancel and return to
+            moments</a>
+    </div>
+
+
+    <nav class="navbar navbar-expand-sm bg-light navbar-light fixed-bottom mx-auto">
+        <input type="submit" form="moment_capture_form" class="btn btn-success btn-block btn-lg" value="Save moment">
+    </nav>
+
+
+
+
 {% endblock %}
 
 
