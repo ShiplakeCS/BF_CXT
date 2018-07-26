@@ -404,7 +404,7 @@ function upload_moment_media() {
 
 // Catch the form submit and upload the files
     function uploadFiles(event) {
-        //event.stopPropagation(); // Stop stuff happening
+        event.stopPropagation(); // Stop stuff happening
         event.preventDefault(); // Totally stop stuff happening
 
         console.log('interrupting submit');
@@ -444,4 +444,57 @@ function upload_moment_media() {
         });
     }
 
+}
+
+function upload_files_attempt(){
+
+    $(':file').on('change', function() {
+    var file = this.files[0];
+    if (file.size > 1024 * 10 * 1024) {
+        alert('max upload size is 10MB')
+    }
+
+    // Also see .name, .type
+});
+
+    $('#file_upload_button').on('click', function() {
+    $.ajax({
+        // Your server script to process the upload
+        url: '/p/capture/media',
+        type: 'POST',
+        // Form data
+        data: new FormData($('#file_upload_form')[0]),
+        // Tell jQuery not to process data or worry about content-type
+        // You *must* include these options!
+        cache: false,
+        contentType: false,
+        processData: false,
+        success: function(result){
+
+            var filepath = JSON.parse(result).file_path;
+
+            $('#media_path').val(filepath);
+            $('#media').empty();
+            $('#media').append("<div><span class='text-success align-middle'>" + String(filepath).split('/')[1] + " uploaded</span> <a href='#' class='btn-sm btn-lightml-2'>remove</a></div>");
+
+            console.log(filepath);
+        },
+        // Custom XMLHttpRequest
+        xhr: function() {
+            var myXhr = $.ajaxSettings.xhr();
+            if (myXhr.upload) {
+                // For handling the progress of the upload
+                myXhr.upload.addEventListener('progress', function(e) {
+                    if (e.lengthComputable) {
+                        $('progress').attr({
+                            value: e.loaded,
+                            max: e.total,
+                        });
+                    }
+                } , false);
+            }
+            return myXhr;
+        }
+    });
+});
 }

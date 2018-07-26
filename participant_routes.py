@@ -149,6 +149,11 @@ def participant_moment_capture():
 
     elif request.method == 'POST':
 
+        media = []
+
+        if request.form['media_path'] != "":
+            media = [request.form['media_path']]
+
         location_status = None
 
         try:
@@ -160,7 +165,7 @@ def participant_moment_capture():
             gps_lat = None
             location_status = request.form['gps_long']
 
-        new_moment = participant.add_moment(int(request.form['rating']), request.form['text_comment'], gps_long, gps_lat, [], location_status)
+        new_moment = participant.add_moment(int(request.form['rating']), request.form['text_comment'], gps_long, gps_lat, media, location_status)
 
         #return new_moment.to_json()   # Useful if posting data via AJAX and need to wait for response data before moving on
         return redirect(url_for('participant_moments'))
@@ -179,17 +184,27 @@ def participant_moment_capture_media():
     os.makedirs(temp_folder_path, exist_ok=True)
 
     try:
-        uploaded_files = request.files.getlist("file[]")
-        temp_file_path_list = []
+        f = request.files['file']
 
-        for file in uploaded_files:
-            if file.filename[-3:].upper() in ['PNG', 'JPG', 'MOV', 'MP4', 'M4V'] or file.filename[-4:].upper() in ['JPEG']:
-                filename = secure_filename(file.filename)
-                file.save(os.path.join(temp_folder_path, filename))
-                temp_file_path_list.append({'file':str(os.path.join(str(participant.id), filename))})
+        if f:
+            if f.filename[-3:].upper() in ['PNG', 'JPG', 'MOV', 'MP4', 'M4V'] or f.filename[-4:].upper() in ['JPEG']:
+                filename = secure_filename(f.filename)
+                f.save(os.path.join(temp_folder_path, filename))
+                return json.dumps({'file_path': str(os.path.join(str(participant.id), filename))})
             else:
-                temp_file_path_list.append({'error':'Uploaded files must end in .png, .jpg, .jpeg, .mov, .mp4 or .m4v', 'error_code':'501', 'filename': file.filename})
-        return json.dumps({'files':temp_file_path_list})
+                return json.dumps({'error':'Uploaded files must end in .png, .jpg, .jpeg, .mov, .mp4 or .m4v', 'error_code':'501', 'filename': f.filename})
+
+        # uploaded_files = request.files.getlist("file[]")
+        # temp_file_path_list = []
+        #
+        # for file in uploaded_files:
+        #     if file.filename[-3:].upper() in ['PNG', 'JPG', 'MOV', 'MP4', 'M4V'] or file.filename[-4:].upper() in ['JPEG']:
+        #         filename = secure_filename(file.filename)
+        #         file.save(os.path.join(temp_folder_path, filename))
+        #         temp_file_path_list.append({'file':str(os.path.join(str(participant.id), filename))})
+        #     else:
+        #         temp_file_path_list.append({'error':'Uploaded files must end in .png, .jpg, .jpeg, .mov, .mp4 or .m4v', 'error_code':'501', 'filename': file.filename})
+        # return json.dumps({'files':temp_file_path_list})
 
     except NameError:
         return json.dumps(
