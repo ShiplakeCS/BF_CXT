@@ -354,7 +354,12 @@ function get_location_for_moment_capture() {
     $('#location').append("<div><span class='text-muted align-middle'>Getting location...</span><img src='/static/images/getting_location_animation.gif' class='ml-2' height='18px width='18px'></div>");
 
     if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(location_success, location_fail);
+        var options = {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0
+        };
+        navigator.geolocation.getCurrentPosition(location_success, location_fail, options);
     } else {
         $('#location').find('button').remove();
         $('#location').append('<span class="text-warning">Your browser doesn\'t appear to support location services.</span>');
@@ -377,6 +382,8 @@ function get_location_for_moment_capture() {
     function location_fail(position) {
         $('#gps_lat').val('AttemptedButFailed');
         $('#gps_long').val('AttemptedButFailed');
+        $('#location').find('div').html('<span class="text-warning align-middle">Unable to get location.</span>')
+
     }
 }
 
@@ -429,6 +436,10 @@ function upload_files_attempt() {
                 $('#progress_bar').addClass(('d-none'));
                 var filepath = JSON.parse(result).file_path;
                 $('#media_path').val(filepath);
+
+                // TODO: Change 'p/capture/media' so that it generates thumbnail of uploaded image
+                // TODO: Show thumbnail of uploaded image within the moment capture form with 'remove' button underneath
+
                 $('#media').append("<div id='uploaded_files'><span class='text-success align-middle'>&#128247; " +
                     filepath +
                     " uploaded.</span> <a href='#' id='remove_media_link' class='btn-sm btn-light ml-2'>remove</a></div>");
@@ -478,7 +489,7 @@ function remove_uploaded_file(e) {
             url: '/api/participants/' + sessionStorage.p_id + '/moments/media/files/' + $('#media_path').val(),
             timeout: 60000,
             error: function (xhr, status, error) {
-                if (e){
+                if (e) {
                     e.stopPropagation();
                     e.preventDefault();
                 }

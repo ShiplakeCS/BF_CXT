@@ -195,6 +195,9 @@ def participant_moment_capture_media():
             if f.filename[-3:].upper() in ['PNG', 'JPG', 'MOV', 'MP4', 'M4V'] or f.filename[-4:].upper() in ['JPEG']:
                 filename = str(participant.id) + "_" + secure_filename(f.filename)
                 f.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                # TODO: If an image, generate a thumbnail of the image, save within the temp upload folder and return path to the thumbnail
+                # so that it can be shown within the upload form.
+
                 return json.dumps({'file_path': filename})
             else:
                 return json.dumps({'error':'Uploaded files must end in .png, .jpg, .jpeg, .mov, .mp4 or .m4v', 'error_code':'501', 'filename': f.filename})
