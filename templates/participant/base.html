@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Bunnyfoot Research</title>
+    <link rel="apple-touch-icon" href="/static/favicon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/css/bootstrap.min.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.0/umd/popper.min.js"></script>
@@ -11,6 +14,9 @@
     {% if page_data.participant_id %}
         <script src="/static/js/participant_functions.js"></script>
     {% endif %}
+<!-- fix safari web app opening links in Safari
+<script>(function(a,b,c){if(c in b&&b[c]){var d,e=a.location,f=/^(a|html)$/i;a.addEventListener("click",function(a){d=a.target;while(!f.test(d.nodeName))d=d.parentNode;"href"in d&&(d.href.indexOf("http")||~d.href.indexOf(e.host))&&(a.preventDefault(),e.href=d.href)},!1)}})(document,window.navigator,"standalone")</script>
+-->
 
 </head>
 <body {% if page_data.onload %}onload="{{ page_data.onload }}"{% endif %}>
@@ -33,12 +39,14 @@
             <ul class="navbar-nav">
                 {% if page_data.researcher_details %}
                     <li class="nav-item">
-                        <a class="nav-link" href="mailto:{{ page_data.researcher_details.email }}">Contact researcher</a>
+                        <a class="nav-link" href="mailto:{{ page_data.researcher_details.email }}">Contact
+                            researcher</a>
                     </li>
                 {% endif %}
                 {% if page_data.support_details %}
                     <li class="nav-item">
-                        <a class="nav-link" href="mailto:{{ page_data.support_details.contact_email }}">Contact support</a>
+                        <a class="nav-link" href="mailto:{{ page_data.support_details.contact_email }}">Contact
+                            support</a>
                     </li>
                 {% endif %}
                 <li class="nav-item">

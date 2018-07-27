@@ -6,6 +6,8 @@ import os, json
 from flask_migrate import Migrate  # SQL Alchemy/Migrate addition
 """
 app = Flask(__name__)
+# app.run(host='0.0.0.0')
+
 app.config.from_object(Config)
 # Add SQL Alchemy instances
 # db = SQLAlchemy(app)

@@ -16,7 +16,8 @@
     <form action="" method="post" class="mb-4">
         <div class="form-group">
             <label for="pin">PIN:</label>
-            <input type="password" class="form-control" id="pin" name="pin" required>
+            <input type="number" class="form-control" id="pin" name="pin" min="0" inputmode="numeric" pattern="[0-9]*" title="Non-negative integral number" required>
+
         </div>
         <button type="submit" class="btn btn-primary">Submit</button>
     </form>

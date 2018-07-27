@@ -707,8 +707,7 @@ class Participant:
         db = DB.get_db()
 
         # Get within project number
-        row = db.execute("SELECT within_project_num FROM Participant WHERE project=? ORDER BY within_project_num DESC",
-                         (str(project_id))).fetchone()
+        row = db.execute("SELECT within_project_num FROM Participant WHERE project=? ORDER BY within_project_num DESC", [project_id]).fetchone()
 
         if row:
             next_within_project_num = int(row['within_project_num']) + 1
@@ -1904,6 +1903,7 @@ class Moment:
             # check filenames are for acceptable file types and add if OK:
             if file_names:
                 for fn in file_names:
+                    fn = fn.lower()
                     if ".png" in fn or ".jpg" in fn or ".jpeg" in fn:
                         media_type = "image"
                     elif ".mov" in fn or ".m4v" in fn or ".mp4" in fn:
@@ -2235,6 +2235,20 @@ class MomentMedia:
         self.__original_filename = media_details['original_filename']
         self.__parent_moment_id = media_details['moment']
 
+        # Generate thumbnail paths
+        i = 0
+        last_index = 0
+        for c in self.original_filename:
+            if c == ".":
+                last_index = i
+            i += 1
+
+        original_file = self.original_filename[:last_index]
+
+        self.__small_thumb_path = original_file + "_thumb_small.jpg"
+        self.__large_thumb_path = original_file + "_thumb_large.jpg"
+
+
     @property
     def media_type(self):
         return self.__type
@@ -2245,8 +2259,7 @@ class MomentMedia:
 
     @property
     def media_file_path(self):
-        # return os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(self.parent_moment_id), str(self.id))
-        # return os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(Moment(self.parent_moment_id).parent_participant.project_id),str(Moment(self.parent_moment_id).parent_participant_id) ,str(self.parent_moment_id), str(self.id))
+
         return os.path.join(
             app.config['MOMENT_MEDIA_FOLDER'],
             'projects',
@@ -2265,11 +2278,11 @@ class MomentMedia:
 
     @property
     def path_small_thumb(self):
-        return str(self.path_original.split(".")[0]) + "_thumb_small.jpg"
+        return os.path.join(self.media_file_path, self.__small_thumb_path)
 
     @property
     def path_large_thumb(self):
-        return str(self.path_original.split(".")[0]) + "_thumb_large.jpg"
+        return os.path.join(self.media_file_path, self.__large_thumb_path)
 
     @property
     def id(self):
@@ -2283,10 +2296,24 @@ class MomentMedia:
 
         if self.media_type == "image":
 
-            original_file, original_file_ext = self.original_filename.split(".")
+            # Split the original file and the extension
+
+            i = 0
+            last_index = 0
+            for c in self.original_filename:
+                if c == ".":
+                    last_index = i
+                i += 1
+
+            original_file = self.original_filename[:last_index]
+            original_file_ext = self.original_filename[last_index + 1:]
+
 
             if not (
-                    original_file_ext.lower() == "jpg" or original_file_ext.lower() == "jpeg" or original_file_ext.lower() == "png"):
+                    original_file_ext.lower() == "jpg"
+                    or original_file_ext.lower() == "jpeg"
+                    or original_file_ext.lower() == "png"
+            ):
                 raise MomentMediaFormatError(
                     "MomentMedia image thumbnails can only be created from PNG or JPG originals.")
 
@@ -2294,11 +2321,13 @@ class MomentMedia:
             im = Image.open(os.path.join(self.media_file_path, self.original_filename))
             im.thumbnail((128, 128), Image.ANTIALIAS)
             small_thumb_filepath = os.path.join(self.media_file_path, original_file + "_thumb_small.jpg")
+            im = im.convert("RGB") # Remove alpha channel present in some PNGs
             im.save(small_thumb_filepath, "JPEG")
 
             # Generate large thumbnail
             im = Image.open(os.path.join(self.media_file_path, self.original_filename))
             im.thumbnail((512, 512), Image.ANTIALIAS)
+            im = im.convert("RGB") # Remove alpha channel present in some PNGs
             large_thumb_filepath = os.path.join(self.media_file_path, original_file + "_thumb_large.jpg")
             im.save(large_thumb_filepath, "JPEG")
 

@@ -91,36 +91,25 @@
         </div>
     </form>
     <div id="media" class="mt-4 form-group">
-
-        <!--        <form id="file_upload_form" action="/p/capture/media" method="post" enctype="multipart/form-data">
-
-                    <p>Would you like to add a photo or video?</p>
-
-
-                    <input type="file" name="file[]" multiple="" class="form-control">
-                    <input type="submit" value="Upload file" class="form-control">
-                    <br>
-
-                    <button class="btn btn-secondary btn-sm">Add photo or video</button>
-
-                </form>-->
-
-
+        <p>Would you like to add a photo or video?</p>
         <form id="file_upload_form" enctype="multipart/form-data">
-            <input class="form-control" name="file" type="file"/>
-            <input id="file_upload_button" class="form-control" type="button" value="Upload"/>
+            <input class="form-control" id='file_upload_input' name="file" type="file" accept=".png,.jpg,.jpeg,.mov,.mp4,.m4v"/>
+            <input id="file_upload_button" class="form-control d-none" type="button" value="Upload"/>
         </form>
-        <progress></progress>
+
+        <div class="progress d-none" id="progress_bar">
+            <div class="progress-bar" style="width:0%"></div>
+        </div>
 
     </div>
     <div id="cancel_button" class="mt-4">
-        <a href="/p/moments" class="btn btn-block btn-sm btn-link" role="button">Cancel and return to
+        <a href="/p/moments" class="btn btn-block btn-sm btn-link" role="button" onclick="remove_uploaded_file()">Cancel and return to
             moments</a>
     </div>
 
 
     <nav class="navbar navbar-expand-sm bg-light navbar-light fixed-bottom mx-auto">
-        <input type="submit" form="moment_capture_form" class="btn btn-success btn-block btn-lg" value="Save moment">
+        <input type="submit" id="save_moment_button" form="moment_capture_form" class="btn btn-success btn-block btn-lg" value="Save moment">
     </nav>
 
 

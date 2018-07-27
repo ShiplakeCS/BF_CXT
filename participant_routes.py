@@ -112,8 +112,11 @@ def participant_moments():
 
     participant = get_active_participant()
 
+    page_data = {
+        'support_details': app.config['SUPPORT_DETAILS']
+    }
     if participant == None:
-        return render_template('participant/not_auth.html', hide_nav_links=True)
+        return render_template('participant/not_auth.html', hide_nav_links=True, page_data=page_data)
 
     project = db_models.Project(participant.project_id)
 
@@ -131,8 +134,11 @@ def participant_moment_capture():
 
     participant = get_active_participant()
 
+    page_data = {
+        'support_details': app.config['SUPPORT_DETAILS']
+    }
     if participant == None:
-        return render_template('participant/not_auth.html', hide_nav_links=True)
+        return render_template('participant/not_auth.html', hide_nav_links=True, page_data=page_data)
 
     if request.method == 'GET':
 
@@ -180,17 +186,16 @@ def participant_moment_capture_media():
         abort(401)
 
     # Make path within temporary folder to save uploaded file
-    temp_folder_path = os.path.join(app.config['UPLOAD_FOLDER'], str(participant.id))
-    os.makedirs(temp_folder_path, exist_ok=True)
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
     try:
         f = request.files['file']
 
         if f:
             if f.filename[-3:].upper() in ['PNG', 'JPG', 'MOV', 'MP4', 'M4V'] or f.filename[-4:].upper() in ['JPEG']:
-                filename = secure_filename(f.filename)
-                f.save(os.path.join(temp_folder_path, filename))
-                return json.dumps({'file_path': str(os.path.join(str(participant.id), filename))})
+                filename = str(participant.id) + "_" + secure_filename(f.filename)
+                f.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                return json.dumps({'file_path': filename})
             else:
                 return json.dumps({'error':'Uploaded files must end in .png, .jpg, .jpeg, .mov, .mp4 or .m4v', 'error_code':'501', 'filename': f.filename})
 

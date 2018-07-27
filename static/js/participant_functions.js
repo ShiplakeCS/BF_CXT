@@ -6,7 +6,7 @@ function start_moments_and_comments_feed_ajax(p_id) {
     sessionStorage.comments_displayed = "";
     sessionStorage.highest_moment_id = 0;
     sessionStorage.highest_comment_id = 0;
-
+    sessionStorage.p_id = p_id;
     load_participant_moments(p_id);
 
 
@@ -49,12 +49,12 @@ function render_moment_html(m) {
         // if image...
 
         if (m.media[media_num].media_type == 'image') {
-            moment_html += '<a href="/api/participants/' + m.parent_participant_id + '/moments/' + m.id + '/media/' + m.media[media_num].id + '/original" aria-label="original thumbnail"><img class="card-img-bottom mb-2" src="/api/participants/' + m.parent_participant_id + '/moments/' + m.id + '/media/' + m.media[media_num].id + '/large" alt="Moment image" style="width:100%"></a>';
+            moment_html += '<a href="/api/participants/' + m.parent_participant_id + '/moments/' + m.id + '/media/' + m.media[media_num].id + '/original" aria-label="original thumbnail"><img class="card-img-bottom mb-2 img-thumbnail" src="/api/participants/' + m.parent_participant_id + '/moments/' + m.id + '/media/' + m.media[media_num].id + '/large" alt="Moment image" style="width:100%"></a>';
 
         }
         //if video...
         else if (m.media[media_num].media_type == 'video') {
-            moment_html += '<video width="100%" controls><source src="/api/participants/' + m.parent_participant_id + '/moments/' + m.id + '/media/' + m.media[media_num].id + '/original" type="video/mp4"></video>';
+            moment_html += '<video width="100%" controls <!--preload="none"-->><source src="/api/participants/' + m.parent_participant_id + '/moments/' + m.id + '/media/' + m.media[media_num].id + '/video/video.mp4" type="video/mp4"></video>';
         }
 
 
@@ -386,115 +386,113 @@ function revoke_location_from_moment_capture() {
     $('#location').html('<p>Would you like to record your present location?</p><button class="btn btn-secondary btn-sm">Get location</button>');
 }
 
-function upload_moment_media() {
+function upload_files_attempt() {
 
-    // Variable to store your files
-    var files;
+    // Helpful resources:
+    // https://stackoverflow.com/questions/18334717/how-to-upload-a-file-using-an-ajax-call-in-flask
+    // https://stackoverflow.com/questions/166221/how-can-i-upload-files-asynchronously - progress bar explanation
+    // https://www.w3schools.com/bootstrap4/bootstrap_progressbars.asp
 
-// Add events
-    $('input[type=file]').on('change', prepareUpload);
+    $(':file').on('change', function () {
+        var file = this.files[0];
+        if (file.size > 1024 * 10 * 1024) {
+            alert('Warning, your upload size is greater than 10MB. This could take a long time unless you have a strong 4G or WiFi connection.')
+        }
+        $('#file_upload_button').trigger('click');
 
-// Grab the files and set them to our variable
-    function prepareUpload(event) {
-        files = event.target.files;
-        console.log(files);
-    }
+        // Also see .name, .type
+    });
 
-    $('form#file_upload_form').on('submit', uploadFiles);
+    $('#file_upload_button').on('click', function () {
 
-// Catch the form submit and upload the files
-    function uploadFiles(event) {
-        event.stopPropagation(); // Stop stuff happening
-        event.preventDefault(); // Totally stop stuff happening
+        // Hide the upload form and show the progress bar
+        $('#file_upload_form').addClass('d-none');
+        $('#progress_bar').removeClass(('d-none'));
+        // Disable the save moment button
+        $('#save_moment_button').removeClass('btn-success');
+        $('#save_moment_button').addClass('btn-light');
+        $('#save_moment_button').addClass('text-muted');
+        $('#save_moment_button').attr('disabled', 'disabled');
 
-        console.log('interrupting submit');
-
-        // START A LOADING SPINNER HERE
-
-        // Create a formdata object and add the files
-        var data = new FormData();
-        $.each(files, function (key, value) {
-            data.append(key, value);
-        });
-
+        // Do the upload
         $.ajax({
-            url: '/p/capture/media/',
+            url: '/p/capture/media',
             type: 'POST',
-            data: data,
+            data: new FormData($('#file_upload_form')[0]),
             cache: false,
-            dataType: 'json',
-            processData: false, // Don't process the files
-            contentType: false, // Set content type to false as jQuery will tell the server its a query string request
-            success: function (data, textStatus, jqXHR) {
-                if (typeof data.error === 'undefined') {
-                    // Success so call function to process the form
-                    console.log(data);
-                    // submitForm(event, data);
-                }
-                else {
-                    // Handle errors here
-                    console.log('ERRORS: ' + data.error);
-                }
+            contentType: false,
+            processData: false,
+            timeout: 60000,
+            success: function (result) {
+                // To be called if all has gone well
+                console.log(result);
+                $('#progress_bar').addClass(('d-none'));
+                var filepath = JSON.parse(result).file_path;
+                $('#media_path').val(filepath);
+                $('#media').append("<div id='uploaded_files'><span class='text-success align-middle'>&#128247; " +
+                    filepath +
+                    " uploaded.</span> <a href='#' id='remove_media_link' class='btn-sm btn-light ml-2'>remove</a></div>");
+                $('#remove_media_link').click(function (e) {
+                    e.preventDefault();
+                    remove_uploaded_file(e);
+                })
+
             },
-            error: function (jqXHR, textStatus, errorThrown) {
-                // Handle errors here
-                console.log('ERRORS: ' + textStatus);
-                // STOP LOADING SPINNER
+            error: function (xhr, status, error) {
+                // Tell the user that an error occured and show the upload form again so that they can attempt another upload
+                $('#progress_bar').addClass(('d-none'));
+                $('#media').prepend('<div><span class="text-warning align-middle">There was a problem uploading your file. Please check that you have a good internet connection and try again or save this moment without uploading your file.</span></div>');
+                $('#file_upload_form').removeClass('d-none');
+            },
+            complete: function (xhr, status) {
+                $('#save_moment_button').addClass('btn-success');
+                $('#save_moment_button').removeClass('btn-light');
+                $('#save_moment_button').removeClass('text-muted');
+                $('#save_moment_button').removeAttr('disabled');
+            },
+
+            // Use a custom XMLHttpRequest object to make AJAX call with attached uploading progress listener
+            xhr: function () {
+                var myXhr = $.ajaxSettings.xhr();
+                if (myXhr.upload) {
+                    // For handling the progress of the upload
+                    myXhr.upload.addEventListener('progress', function (e) {
+                        if (e.lengthComputable) {
+                            $('.progress-bar').attr({style: 'width:' + (e.loaded / e.total) * 100 + '%'})
+                        }
+                    }, false);
+                }
+                return myXhr;
             }
         });
-    }
-
+    });
 }
 
-function upload_files_attempt(){
+function remove_uploaded_file(e) {
 
-    $(':file').on('change', function() {
-    var file = this.files[0];
-    if (file.size > 1024 * 10 * 1024) {
-        alert('max upload size is 10MB')
+    if ($('#file_upload_input').val() != '') {
+        // trigger ajax call to remove the file from the temp folder - need to write API route for this
+
+        $.ajax({
+            type: 'DELETE',
+            url: '/api/participants/' + sessionStorage.p_id + '/moments/media/files/' + $('#media_path').val(),
+            timeout: 60000,
+            error: function (xhr, status, error) {
+                if (e){
+                    e.stopPropagation();
+                    e.preventDefault();
+                }
+                console.log('unable to erase file.')
+            },
+            success: function () {
+                $('#uploaded_files').remove();
+                $('#file_upload_input').val('');
+                $('#file_upload_form').removeClass('d-none');
+                $('.progress-bar').attr({style: 'width:0%'});
+                $('#media_path').val('');
+            }
+        });
+
     }
 
-    // Also see .name, .type
-});
-
-    $('#file_upload_button').on('click', function() {
-    $.ajax({
-        // Your server script to process the upload
-        url: '/p/capture/media',
-        type: 'POST',
-        // Form data
-        data: new FormData($('#file_upload_form')[0]),
-        // Tell jQuery not to process data or worry about content-type
-        // You *must* include these options!
-        cache: false,
-        contentType: false,
-        processData: false,
-        success: function(result){
-
-            var filepath = JSON.parse(result).file_path;
-
-            $('#media_path').val(filepath);
-            $('#media').empty();
-            $('#media').append("<div><span class='text-success align-middle'>" + String(filepath).split('/')[1] + " uploaded</span> <a href='#' class='btn-sm btn-lightml-2'>remove</a></div>");
-
-            console.log(filepath);
-        },
-        // Custom XMLHttpRequest
-        xhr: function() {
-            var myXhr = $.ajaxSettings.xhr();
-            if (myXhr.upload) {
-                // For handling the progress of the upload
-                myXhr.upload.addEventListener('progress', function(e) {
-                    if (e.lengthComputable) {
-                        $('progress').attr({
-                            value: e.loaded,
-                            max: e.total,
-                        });
-                    }
-                } , false);
-            }
-            return myXhr;
-        }
-    });
-});
 }

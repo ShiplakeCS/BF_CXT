@@ -1,7 +1,7 @@
-from flask import session, abort, request, send_file, redirect, url_for
-from datetime import datetime
+from flask import session, abort, request, send_file, redirect, url_for, send_from_directory
 from cxt_app import app, db_models, tests
-import json
+import json, os, shutil
+from werkzeug.utils import secure_filename
 
 # Read for more details on builing an API, particularly its routes: https://www.restapitutorial.com/index.html
 # Read for more details on authentication and authorisation when accessing an API: https://blog.restcase.com/restful-api-authentication-basics/
@@ -134,7 +134,24 @@ def get_participants_comments(p_id):
         abort(401)
 
 
-@app.route('/api/participants/<p_id>/moments/<moment_id>/media/<media_id>/<size>')
+@app.route('/api/participants/<p_id>/moments/<moment_id>/media/<media_id>/video/<path:filename>')
+def get_participant_moment_media_video(p_id, moment_id, media_id, filename):
+    if auth_consultant() or auth_participant(p_id):
+
+        media = db_models.MomentMedia(media_id)
+
+        if media.parent_moment_id != int(moment_id):
+            abort(404)
+
+        if media.media_type != 'video':
+            abort(400)
+
+        return send_from_directory(media.media_file_path, media.original_filename)
+
+    else:
+        abort(401)
+
+@app.route('/api/participants/<p_id>/moments/<moment_id>/media/<media_id>/<size>/')
 def get_participant_moment_media(p_id, moment_id, media_id, size):
     if auth_consultant() or auth_participant(p_id):
 
@@ -142,6 +159,10 @@ def get_participant_moment_media(p_id, moment_id, media_id, size):
 
         if media.parent_moment_id != int(moment_id):
             abort(404)
+
+        if media.media_type == 'video':
+            return send_file(media.path_original, attachment_filename='video.mp4')
+
         if size == 'original':
             return send_file(media.path_original, attachment_filename=media.original_filename)
         elif size == 'small':
@@ -153,6 +174,18 @@ def get_participant_moment_media(p_id, moment_id, media_id, size):
     else:
         abort(401)
 
+## Moment media
+@app.route('/api/participants/<p_id>/moments/media/files/<filename>', methods=['DELETE'])
+def delete_temp_media_file(p_id, filename):
+    if auth_consultant() or auth_participant(p_id):
+        filename = secure_filename(filename)
+        try:
+            os.remove(os.path.join(app.config['UPLOAD_FOLDER'],filename))
+            return json.dumps({'deleted_filepath':filename})
+        except:
+            abort(400)
+    else:
+        abort(401)
 
 @app.route('/api/participants/<p_id>/moments/<moment_id>/comments/', methods=['post'])
 def add_participant_moment_comment(p_id, moment_id):
@@ -167,6 +200,8 @@ def add_participant_moment_comment(p_id, moment_id):
             abort(400)
     else:
         abort(401)
+
+
 
 ## Project routes
 
@@ -267,118 +302,7 @@ def get_client(client_id):
         return json.dumps({"error_code": 401, "error_text": "No client found with ID {}".format(client_id)}, indent=4), 404
 
 
-@app.route('/api/get/moments/<participant_id>')
-def get_moments(participant_id):
 
-    if 'logged_in' in session and session['logged_in']:
-
-        moments =[
-            {
-                "id":1,
-                "timestamp": "Mon Jul 16 09:43:11 2018",
-                "rating":3,
-                "text":"A perfectly normal experience of buying a train ticket.",
-                "media": "/static/images/moment_media_placeholder.png"
-            },
-            {
-                "id":2,
-                "timestamp": datetime.ctime(datetime.utcnow()),
-                "rating": 5,
-                "text": "Amazing customer service!",
-                "media": ""
-
-            },
-            {
-                "id":3,
-                "timestamp": "Mon Jul 16 10:30:20 2018",
-                "rating": 1,
-                "text": "Horrible burger!",
-                "media": "/static/images/moment_media_placeholder.png"
-            }
-        ]
-
-        return json.dumps(moments, sort_keys=True, indent=4)
-
-    else:
-        print((str(session)))
-        print("Attempt to access moments when not logged in!")
-
-        abort(401)
-
-
-@app.route('/api/get/comments/<participant_id>')
-def get_comments(participant_id):
-
-    if 'logged_in' in session and session['logged_in']:
-
-        comments = [
-
-            {
-                "id": 1,
-                "moment_id": 1,
-                "timestamp": "Mon Jul 16 09:43:11 2018",
-                "text": "Why do you say that?",
-                "author": "Bob"
-            },
-
-            {
-                "id": 2,
-                "moment_id": 1,
-                "timestamp": "Mon Jul 16 09:43:11 2018",
-                "text": "It just was!.",
-                "author": "Jane"
-            },
-
-            {
-                "id": 3,
-                "moment_id": 2,
-                "timestamp": "Mon Jul 16 09:43:11 2018",
-                "text": "This is a comment on moment 2",
-                "author": "Bob"
-            },
-            {
-                "id": 4,
-                "moment_id": 1,
-                "timestamp": "Mon Jul 16 09:43:11 2018",
-                "text": "Ok, then :)",
-                "author": "Bob"
-
-            }
-        ]
-
-        return json.dumps(comments, sort_keys=True, indent=4)
-
-    else:
-        print((str(session)))
-        print("Attempt to access comments when not logged in!")
-
-        abort(401)
-
-
-
-
-@app.route('/api/get/comments/count/<participant_id>')
-def get_comments_count(participant_id):
-
-
-
-    counts = [
-        {
-            "moment_id": 1,
-            "count": 3
-        },
-        {
-            "moment_id": 2,
-            "count": 1
-
-        },
-        {
-            "moment_id": 3,
-            "count": 0
-        }
-    ]
-
-    return json.dumps(counts)
 
 @app.route('/tests/participants/<p_id>/add_moment')
 def test_participant_add_moment(p_id):
