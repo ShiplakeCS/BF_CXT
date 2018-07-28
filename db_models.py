@@ -1807,7 +1807,7 @@ class Moment:
         # Delete entry from DB for this moment
         db.execute("DELETE FROM Moment WHERE id=?", [self.id])
         db.commit()
-        return 'Moment {} deleted from DB along with all related media'.format(self.id)
+        return self
 
     def assign_tag(self, tag_id: int):
         # Check that tag_id exists for the project this moment relates to

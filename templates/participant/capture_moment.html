@@ -13,18 +13,31 @@
                 e.preventDefault();
                 get_location_for_moment_capture();
             })
-
-            // upload_moment_media();
+            disable_save_button();
             upload_files_attempt();
         });
 
         function clear_bottom_margin() {
-            $(".container-fluid").css('margin-bottom', '20px')
+            $(".container-fluid").css('margin-bottom', '20px');
+        }
+
+        function enable_save_button() {
+            $("#save_moment_button").removeAttr('disabled');
+            $("#save_moment_button").addClass('btn-success');
+            $("#save_moment_button").removeClass('btn-secondary');
+        }
+
+        function disable_save_button() {
+            $("#save_moment_button").attr('disabled', 'disabled');
+            $("#save_moment_button").removeClass('btn-success');
+            $("#save_moment_button").addClass('btn-secondary');
         }
 
 
         function set_star_rating(value) {
             $('#rating').val(value);
+
+            enable_save_button();
 
             function clear_all() {
                 $('#star_1').html('&#x2606;');
@@ -93,23 +106,26 @@
     <div id="media" class="mt-4 form-group">
         <p>Would you like to add a photo or video?</p>
         <form id="file_upload_form" enctype="multipart/form-data">
-            <input class="form-control" id='file_upload_input' name="file" type="file" accept=".png,.jpg,.jpeg,.mov,.mp4,.m4v"/>
+            <input class="form-control" id='file_upload_input' name="file" type="file"
+                   accept=".png,.jpg,.jpeg,.mov,.mp4,.m4v"/>
             <input id="file_upload_button" class="form-control d-none" type="button" value="Upload"/>
         </form>
 
-        <div class="progress d-none" id="progress_bar">
-            <div class="progress-bar" style="width:0%"></div>
+        <div class="progress d-none" style="height:20px;" id="progress_bar">
+            <div class="progress-bar" style="height:20px; width:0%"></div>
         </div>
 
     </div>
     <div id="cancel_button" class="mt-4">
-        <a href="/p/moments" class="btn btn-block btn-sm btn-link" role="button" onclick="remove_uploaded_file()">Cancel and return to
+        <a href="/p/moments" class="btn btn-block btn-sm btn-link" role="button" onclick="remove_uploaded_file()">Cancel
+            and return to
             moments</a>
     </div>
 
 
     <nav class="navbar navbar-expand-sm bg-light navbar-light fixed-bottom mx-auto">
-        <input type="submit" id="save_moment_button" form="moment_capture_form" class="btn btn-success btn-block btn-lg" value="Save moment">
+        <input type="submit" id="save_moment_button" form="moment_capture_form" class="btn btn-success btn-block btn-lg"
+               value="Save moment">
     </nav>
 
 

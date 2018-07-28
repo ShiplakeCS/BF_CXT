@@ -72,6 +72,7 @@ function render_moment_html(m) {
         '<span id = "moment_' + m.id + '_new_comment_indicator" class="text-info d-none">&#9679;</span>' +
         '<button id="moment_' + m.id + '_show_comments_button" data-toggle="collapse" data-target="#moment_' + m.id + '_comments" class="btn btn-secondary btn-sm">' +
         'Comments <span id="moment_' + m.id + '_comments_count_label" class="badge badge-light">0</span></button>' +
+        '<button id="delete_moment_' + m.id + '_button" class="btn btn-sm float-right align-middle" onclick="delete_moment('+m.id+')">Delete</button>'+
         '<div id="moment_' + m.id + '_comments" class="mt-2 collapse">' +
         '<div id="moment_' + m.id + '_comments_form">' +
         '<div>\n' +
@@ -356,8 +357,9 @@ function get_location_for_moment_capture() {
     if (navigator.geolocation) {
         var options = {
             enableHighAccuracy: true,
-            timeout: 5000,
+            timeout: 10000,
             maximumAge: 0
+
         };
         navigator.geolocation.getCurrentPosition(location_success, location_fail, options);
     } else {
@@ -469,7 +471,7 @@ function upload_files_attempt() {
                     // For handling the progress of the upload
                     myXhr.upload.addEventListener('progress', function (e) {
                         if (e.lengthComputable) {
-                            $('.progress-bar').attr({style: 'width:' + (e.loaded / e.total) * 100 + '%'})
+                            $('.progress-bar').attr({style: 'height:20px; width:' + (e.loaded / e.total) * 100 + '%'})
                         }
                     }, false);
                 }
@@ -499,7 +501,7 @@ function remove_uploaded_file(e) {
                 $('#uploaded_files').remove();
                 $('#file_upload_input').val('');
                 $('#file_upload_form').removeClass('d-none');
-                $('.progress-bar').attr({style: 'width:0%'});
+                $('.progress-bar').attr({style: 'height:20px; width:0%'});
                 $('#media_path').val('');
             }
         });
@@ -507,3 +509,28 @@ function remove_uploaded_file(e) {
     }
 
 }
+
+function delete_moment(moment_id) {
+
+    if (confirm("Are you sure you wish to delete this moment?")) {
+        $.ajax({
+            type: 'DELETE',
+            url: '/api/participants/' + sessionStorage.p_id + '/moments/' + moment_id + '/',
+            timeout: 60000,
+            error: function (xhr, status, error) {
+                console.log('unable to delete moment.')
+            },
+            success: function () {
+                $('#moment_' + moment_id).slideUp("fast", function(){
+                    $('#moment_' + moment_id).remove();
+                });
+
+                console.log('moment deleted: ' + moment_id);
+            }
+        });
+
+    }
+
+
+}
+

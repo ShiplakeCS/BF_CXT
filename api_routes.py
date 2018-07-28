@@ -96,6 +96,24 @@ def get_participants_moments(p_id):
     else:
         abort(401)
 
+@app.route('/api/participants/<p_id>/moments/<moment_id>/', methods=['DELETE'])
+def delete_participant_moment(p_id, moment_id):
+
+    if auth_consultant() or auth_participant(p_id):
+
+        try:
+            moment_to_delete = db_models.Moment(moment_id)
+            if moment_to_delete.parent_participant_id != int(p_id):
+                abort(401) # Not the correct participant therefore cannot delete
+            moment_to_delete.delete_from_db()
+            return moment_to_delete.to_json()
+
+        except db_models.MomentNotFoundError:
+            abort(400)
+    else:
+        abort(401)
+
+
 @app.route('/api/participants/<p_id>/moments/comments/')
 def get_participants_comments(p_id):
 
