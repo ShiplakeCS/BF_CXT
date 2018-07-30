@@ -264,6 +264,8 @@ function append_comment_to_moment(c, hide_notification = false, animate = false)
         $('#moment_' + c.parent_moment + '_comment_' + c.id).slideDown('fast');
     }
 
+    sessionStorage.latest_moment_with_new_comment = c.parent_moment;
+    sessionStorage.latest_comment_added = c.id;
 }
 
 function get_moment_comments(p_id, first_run = false, hide_notification = false) {
@@ -292,7 +294,7 @@ function get_moment_comments(p_id, first_run = false, hide_notification = false)
             // For each comment...
             for (i = 0; i < participant_comments.count; i++) {
                 // render comment as HTML
-                current_comment = participant_comments.comments[i];
+                var current_comment = participant_comments.comments[i];
                 // append to appropriate moment div
                 append_comment_to_moment(current_comment, hide_notification);
                 sessionStorage.comments_displayed += current_comment.id + ',';
@@ -303,9 +305,16 @@ function get_moment_comments(p_id, first_run = false, hide_notification = false)
                 sessionStorage.highest_comment_id = participant_comments.highest_comment_id;
                 if (!hide_notification) {
                     // Show alert that new comments found
-                    var alert_html = '<div class="alert alert-info alert-dismissible"><button type="button" class="close" data-dismiss="alert">&times;</button>You have new comments.</div>';
-
+                    var alert_html = '<div id="comment_alert" class="alert alert-info alert-dismissible"><button type="button" class="close" data-dismiss="alert">&times;</button>You have new comments.</div>';
                     $('#moments').before(alert_html);
+                    $('#comment_alert').click(function(){
+                        // remove/dismiss alert
+                        $(this).remove();
+                        //$('#moment_' +sessionStorage.latest_moment_with_new_comment + '_show_comments_button').trigger('click');
+                        $('#moment_' +sessionStorage.latest_moment_with_new_comment)[0].scrollIntoView();
+                        //$('#moment_' +sessionStorage.latest_moment_with_new_comment + '_comment_' + sessionStorage.latest_comment_added)[0].scrollIntoView();
+
+                    });
                 }
 
             }
@@ -437,14 +446,23 @@ function upload_files_attempt() {
                 console.log(result);
                 $('#progress_bar').addClass(('d-none'));
                 var filepath = JSON.parse(result).file_path;
+                var thumbpath = JSON.parse(result).thumbnail;
                 $('#media_path').val(filepath);
 
                 // TODO: Change 'p/capture/media' so that it generates thumbnail of uploaded image
                 // TODO: Show thumbnail of uploaded image within the moment capture form with 'remove' button underneath
 
-                $('#media').append("<div id='uploaded_files'><span class='text-success align-middle'>&#128247; " +
-                    filepath +
-                    " uploaded.</span> <a href='#' id='remove_media_link' class='btn-sm btn-light ml-2'>remove</a></div>");
+                var upload_preview_html = "<div id='uploaded_files'>";
+                if (thumbpath){
+                    upload_preview_html += "<img src = '/api/participants/" + sessionStorage.p_id +
+                        "/moments/media/temp/" + thumbpath + "' class='img-thumbnail mb-2' style='max-height: 250px'><br />";
+                }
+                else{
+                    upload_preview_html += "<span class='text-success align-middle'>" + filepath + " uploaded</span>";
+                }
+                upload_preview_html += "<a href='#' id='remove_media_link' class='btn-sm btn-light ml-2'>remove</a></div>";
+
+                $('#media').append(upload_preview_html);
                 $('#remove_media_link').click(function (e) {
                     e.preventDefault();
                     remove_uploaded_file(e);
@@ -488,7 +506,7 @@ function remove_uploaded_file(e) {
 
         $.ajax({
             type: 'DELETE',
-            url: '/api/participants/' + sessionStorage.p_id + '/moments/media/files/' + $('#media_path').val(),
+            url: '/api/participants/' + sessionStorage.p_id + '/moments/media/temp/' + $('#media_path').val(),
             timeout: 60000,
             error: function (xhr, status, error) {
                 if (e) {

@@ -1,8 +1,63 @@
-from flask import session, abort
+from flask import session, abort, render_template, url_for, redirect, request
 from datetime import datetime
 from cxt_app import app, db_models
 import json
 
+def get_page_data():
+    return {
+        'support': app.config['SUPPORT_DETAILS']
+    }
+
+@app.route('/')
+def index():
+
+    consultant = get_active_consultant()
+
+    if consultant == None:
+        return redirect(url_for('consultant_login'))
+
+    return render_template('dashboard/home.html',
+                           consultant=consultant.to_dict(),
+                           active_projects=consultant.get_active_project_details(),
+                           page_data=get_page_data()
+                        )
+
+
+def remove_active_consultant():
+    if 'active_consultant' in session:
+        del session['active_consultant']
+
+def get_active_consultant():
+    if 'active_consultant' in session:
+        return db_models.Consultant(session['active_consultant'])
+    else:
+        return None
+
+
+## Login and logout
+
+@app.route('/login/', methods=['GET', 'POST'])
+def consultant_login():
+    if request.method=="GET":
+        return render_template('dashboard/login.html', page_data=get_page_data())
+    elif request.method=="POST":
+        try:
+            c = db_models.Consultant.login(request.form['email'], request.form['password'])
+            session['active_consultant'] = c.id
+            return redirect(url_for('index'))
+        except db_models.ConsultantLoginError:
+            return render_template('dashboard/login.html', error="Sorry, but the email address and password that you entered do not appear to match. Please try agian.", page_data=get_page_data())
+        except db_models.ConsultantNotFoundError:
+            return render_template('dashboard/login.html', error="Sorry, but we did not recognise the email address that you entered. Please try agian.", page_data=get_page_data())
+
+@app.route('/logout/')
+def consultant_logout():
+
+    remove_active_consultant()
+    return redirect(url_for('index'))
+
+
+""" TEST ROUTES """
 
 @app.route('/test/new_consultant')
 def test_new_consultant():

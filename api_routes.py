@@ -6,6 +6,12 @@ from werkzeug.utils import secure_filename
 # Read for more details on builing an API, particularly its routes: https://www.restapitutorial.com/index.html
 # Read for more details on authentication and authorisation when accessing an API: https://blog.restcase.com/restful-api-authentication-basics/
 
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'),
+                               'favicon.ico', mimetype='image/vnd.microsoft.icon')
+
+
 @app.route('/config')
 def show_config():
     return json.dumps({"upload_folder":app.config['UPLOAD_FOLDER'], "moment_media_folder": app.config['MOMENT_MEDIA_FOLDER']}, indent=4)
@@ -19,6 +25,13 @@ def auth_consultant():
     # TODO: Replace logic for authroising a consultant to provide a true authenticated API
 
     return 'active_consultant' in session and session['active_consultant']is not None
+
+
+def get_active_consultant():
+    if 'active_consultant' in session:
+        return db_models.Consultant(session['active_consultant'])
+    else:
+        return None
 
 
 def auth_participant(id):
@@ -52,7 +65,18 @@ def get_consultants():
     # TODO: Add get all consultants static method to consultant object
     return db_models.Consultant.get_all_consultants_json()
 
+@app.route('/api/consultants/<c_id>/change_password', methods=['POST'])
+def  change_consultant_password(c_id):
 
+    c = get_active_consultant()
+
+    if not c or not c.admin or c.id!=int(c_id):
+        abort(401)
+    try:
+        c.change_password(request.form['old_pass'], request.form['new_pass'])
+        return 'password updated for consultant {}'.format(c_id)
+    except:
+        return 'Incorrect original password provided', 401
 
 ## Participant routes
 
@@ -193,15 +217,25 @@ def get_participant_moment_media(p_id, moment_id, media_id, size):
         abort(401)
 
 ## Moment media
-@app.route('/api/participants/<p_id>/moments/media/files/<filename>', methods=['DELETE'])
+
+@app.route('/api/participants/<p_id>/moments/media/temp/<filename>', methods=['GET','DELETE'])
 def delete_temp_media_file(p_id, filename):
     if auth_consultant() or auth_participant(p_id):
         filename = secure_filename(filename)
-        try:
-            os.remove(os.path.join(app.config['UPLOAD_FOLDER'],filename))
-            return json.dumps({'deleted_filepath':filename})
-        except:
-            abort(400)
+
+        if request.method.upper() == "DELETE":
+            try:
+                os.remove(os.path.join(app.config['UPLOAD_FOLDER'],filename))
+                if os.path.isfile(os.path.join(app.config['UPLOAD_FOLDER'], "{}_thumb.jpg".format(filename))):
+                    os.remove(os.path.join(app.config['UPLOAD_FOLDER'], "{}_thumb.jpg".format(filename)))
+                return json.dumps({'deleted_filepath':filename})
+            except:
+                abort(400)
+        elif request.method.upper() == "GET":
+            try:
+                return send_file(os.path.join(app.config['UPLOAD_FOLDER'],filename))
+            except:
+                abort(404)
     else:
         abort(401)
 

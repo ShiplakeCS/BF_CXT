@@ -1,9 +1,10 @@
-import sqlite3, json, uuid, dateutil.parser, random, os, shutil, csv
+import sqlite3, json, uuid, dateutil.parser, random, os, shutil, csv, exifread
 from flask import g
 from cxt_app import app
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 from PIL import Image
+from PIL.ExifTags import TAGS, GPSTAGS
 
 
 class DB:
@@ -35,6 +36,14 @@ class DB:
         if hasattr(g, 'db'):
             g.db.close()
 
+
+class ActivityLog:
+
+    @staticmethod
+    def add_event(user_id, user_type, log_entry, ip_add):
+        db = DB.get_db()
+        db.execute("INSERT INTO ActivityLog VALUES (?, ?, ?, ?, ?, ?)", [None, user_id, user_type, log_entry, ip_add, datetime.isoformat(datetime.utcnow())])
+        db.commit()
 
 class ConsultantNotFoundError(Exception):
     pass
@@ -265,6 +274,32 @@ class Consultant:
         new_id = cur.lastrowid
 
         return Consultant(new_id)
+
+    def change_password(self, old, new):
+
+        # confirm old password is correct
+
+        db = DB.get_db()
+        row = db.execute("SELECT password_hash FROM Consultant WHERE id=?", [self.id]).fetchone()
+
+        if check_password_hash(row['password_hash'], old):
+          # old password is good, set new one
+            new_pw_hash = generate_password_hash(new)
+            db.execute("UPDATE Consultant SET password_hash=? WHERE id=?", [new_pw_hash, self.id])
+            db.commit()
+        else:
+            raise ConsultantUpdateError("Cannot change password, old password did not match database.")
+
+    def get_active_project_details(self):
+
+        ps = []
+
+        for id in self.project_ids:
+            p = Project(id)
+            if p.active:
+                ps.append({'id':p.id, 'code':p.bf_code, 'client':p.client.description})
+
+        return ps
 
     @staticmethod
     def login(email, password):
@@ -760,7 +795,7 @@ class Participant:
                 "Participant login URL/PIN mismatch. Check PIN is correct and that URL is still active. Your research consultant can issue you with a new login URL and PIN if necessary.")
 
         if result['active'] != 1:
-            raise ParticipantNotActive
+            raise ParticipantNotActive("Participant {} not active".format(result['id']))
 
         return Participant(result['id'])
 
@@ -1616,7 +1651,7 @@ class Project:
 
         return {
             "id": self.id,
-            "bf_code": self.bf_code,
+            "code": self.bf_code,
             "client_id": self.client_id,
             "client": self.client.to_dict(),
             "title": self.title,
@@ -1798,8 +1833,10 @@ class Moment:
         for m in self.media:
             m.delete_moment_media()
         # Delete moment media folder
-        shutil.rmtree(os.path.join(app.config['MOMENT_MEDIA_FOLDER'], str(self.parent_participant.project_id),
-                                   str(self.parent_participant_id), str(self.id)), True)
+
+        shutil.rmtree(os.path.join(app.config['MOMENT_MEDIA_FOLDER'], "projects", str(self.parent_participant.project_id),
+                                  "participants", str(self.parent_participant_id), "moments", str(self.id)), True)
+
 
         db = DB.get_db()
         # Delete MomentTag entries for this moment
@@ -2292,6 +2329,76 @@ class MomentMedia:
     def parent_moment_id(self):
         return self.__parent_moment_id
 
+    # def get_gps_from_image_exif_data(self):
+    #
+    #     # https://gist.github.com/erans/983821/e30bd051e1b1ae3cb07650f24184aa15c0037ce8
+    #
+    #     if self.media_type != 'image':
+    #         raise MomentMediaFormatError("Can only attempt to extract location data from images")
+    #
+    #     def get_exif_data(image):
+    #         """Returns a dictionary from the exif data of an PIL Image item. Also converts the GPS Tags"""
+    #         exif_data = {}
+    #         info = image._getexif()
+    #         if info:
+    #             for tag, value in info.items():
+    #                 decoded = TAGS.get(tag, tag)
+    #                 if decoded == "GPSInfo":
+    #                     gps_data = {}
+    #                     for t in value:
+    #                         sub_decoded = GPSTAGS.get(t, t)
+    #                         gps_data[sub_decoded] = value[t]
+    #
+    #                     exif_data[decoded] = gps_data
+    #                 else:
+    #                     exif_data[decoded] = value
+    #
+    #         return exif_data
+    #
+    #     def _get_if_exist(data, key):
+    #         if key in data:
+    #             return data[key]
+    #
+    #         return None
+    #
+    #     def _convert_to_degress(value):
+    #         """
+    #         Helper function to convert the GPS coordinates stored in the EXIF to degress in float format
+    #         :param value:
+    #         :type value: exifread.utils.Ratio
+    #         :rtype: float
+    #         """
+    #         d = float(value.values[0].num) / float(value.values[0].den)
+    #         m = float(value.values[1].num) / float(value.values[1].den)
+    #         s = float(value.values[2].num) / float(value.values[2].den)
+    #
+    #         return d + (m / 60.0) + (s / 3600.0)
+    #
+    #     def get_exif_location(exif_data):
+    #         """
+    #         Returns the latitude and longitude, if available, from the provided exif_data (obtained through get_exif_data above)
+    #         """
+    #         lat = None
+    #         lon = None
+    #
+    #         gps_latitude = _get_if_exist(exif_data, 'GPS GPSLatitude')
+    #         gps_latitude_ref = _get_if_exist(exif_data, 'GPS GPSLatitudeRef')
+    #         gps_longitude = _get_if_exist(exif_data, 'GPS GPSLongitude')
+    #         gps_longitude_ref = _get_if_exist(exif_data, 'GPS GPSLongitudeRef')
+    #
+    #         if gps_latitude and gps_latitude_ref and gps_longitude and gps_longitude_ref:
+    #             lat = _convert_to_degress(gps_latitude)
+    #             if gps_latitude_ref.values[0] != 'N':
+    #                 lat = 0 - lat
+    #
+    #             lon = _convert_to_degress(gps_longitude)
+    #             if gps_longitude_ref.values[0] != 'E':
+    #                 lon = 0 - lon
+    #
+    #         return lat, lon
+    #
+    #     return get_exif_location(get_exif_data(Image(self.path_original)))
+
     def generate_thumbnails(self):
 
         if self.media_type == "image":
@@ -2318,22 +2425,39 @@ class MomentMedia:
                     "MomentMedia image thumbnails can only be created from PNG or JPG originals.")
 
             # Generate small thumbnail
-            im = Image.open(os.path.join(self.media_file_path, self.original_filename))
-            im.thumbnail((128, 128), Image.ANTIALIAS)
-            small_thumb_filepath = os.path.join(self.media_file_path, original_file + "_thumb_small.jpg")
-            im = im.convert("RGB") # Remove alpha channel present in some PNGs
-            im.save(small_thumb_filepath, "JPEG")
+            # im = Image.open(os.path.join(self.media_file_path, self.original_filename))
+            # im.thumbnail((128, 128), Image.ANTIALIAS)
+            # small_thumb_filepath = os.path.join(self.media_file_path, original_file + "_thumb_small.jpg")
+            # im = im.convert("RGB") # Remove alpha channel present in some PNGs
+            # im.save(small_thumb_filepath, "JPEG")
 
-            # Generate large thumbnail
-            im = Image.open(os.path.join(self.media_file_path, self.original_filename))
-            im.thumbnail((512, 512), Image.ANTIALIAS)
-            im = im.convert("RGB") # Remove alpha channel present in some PNGs
-            large_thumb_filepath = os.path.join(self.media_file_path, original_file + "_thumb_large.jpg")
-            im.save(large_thumb_filepath, "JPEG")
+            MomentMedia.generate_image_thumbnail_jpeg(os.path.join(self.media_file_path, self.original_filename), os.path.join(self.media_file_path, original_file + "_thumb_small.jpg"), "small")
+
+            MomentMedia.generate_image_thumbnail_jpeg(os.path.join(self.media_file_path, self.original_filename), os.path.join(self.media_file_path, original_file + "_thumb_large.jpg"), "large")
+
+            # # Generate large thumbnail
+            # im = Image.open(os.path.join(self.media_file_path, self.original_filename))
+            # im.thumbnail((512, 512), Image.ANTIALIAS)
+            # im = im.convert("RGB") # Remove alpha channel present in some PNGs
+            # large_thumb_filepath = os.path.join(self.media_file_path, original_file + "_thumb_large.jpg")
+            # im.save(large_thumb_filepath, "JPEG")
 
         elif self.media_type == "video":
             # TODO: Add code to take a frame from video and generate two thumbnails
             pass
+
+    @staticmethod
+    def generate_image_thumbnail_jpeg(input_filepath, output_filepath, size="small"):
+
+        dimensions = (256,256)
+        if size.lower() == "large":
+            dimensions = (1024, 1024)
+
+        im = Image.open(input_filepath)
+        im.thumbnail(dimensions, Image.ANTIALIAS)
+        im = im.convert("RGB")  # Remove alpha channel present in some PNGs
+        im.save(output_filepath, "JPEG")
+
 
     def delete_moment_media(self):
         # delete media files
@@ -2343,6 +2467,25 @@ class MomentMedia:
         db.execute("DELETE FROM MomentMedia WHERE id=?", [self.id])
         db.commit()
         return 'MomentMedia {} deleted from DB and all media files removed.'.format(self.id)
+
+    @staticmethod
+    def rotate_image_based_on_exif(image_filename):
+        # from: https://coderwall.com/p/nax6gg/fix-jpeg-s-unexpectedly-rotating-when-saved-with-pil
+        image = Image.open(image_filename)
+        image_format = image.format
+        if hasattr(image, '_getexif'):
+            orientation = 0x0112
+            exif = image._getexif()
+            if exif is not None and orientation in exif:
+                orientation = exif[orientation]
+                rotations = {
+                    3: Image.ROTATE_180,
+                    6: Image.ROTATE_270,
+                    8: Image.ROTATE_90
+                }
+                if orientation in rotations:
+                    image = image.transpose(rotations[orientation])
+        image.save(image_filename, format=image_format)
 
     @staticmethod
     def get_media_for_moment(moment_id):
@@ -2408,7 +2551,17 @@ class MomentMedia:
 
             # Copy file to proper location
 
-            shutil.move(tmp_path, media_path)
+            if os.path.isfile(tmp_path):
+                shutil.move(tmp_path, media_path)
+            else:
+                raise MomentMediaNotFoundError("Could not find temporary upload file for media: {}".format(self.id))
+
+            # Attempt to delete thumbnail of temporary uploaded image file
+
+            temp_thumbnail_path = os.path.join(app.config['UPLOAD_FOLDER'], "{}_thumb.jpg".format(file_name))
+
+            if os.path.isfile(temp_thumbnail_path):
+                os.remove(temp_thumbnail_path)
 
             db.commit()
 

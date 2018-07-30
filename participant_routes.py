@@ -4,14 +4,6 @@ from cxt_app import app, db_models
 import json, os
 
 
-@app.route('/')
-def index():
-    return "Hello, world!"
-
-@app.route('/favicon.ico')
-def favicon():
-    return send_from_directory(os.path.join(app.root_path, 'static'),
-                               'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 def remove_active_particiant():
     if 'active_participant_id' in session:
@@ -74,21 +66,30 @@ def participant_login(participant_url_key):
             try:
                 p = db_models.Participant.login(participant_url_key, request.form['pin'])
                 session['active_participant_id'] = p.id
-
+                db_models.ActivityLog.add_event(p.id, "participant", "PARTICIPANT LOGIN: ID {} using url key {}".format(p.id, participant_url_key), request.remote_addr)
                 return redirect(url_for('participant_home'))
 
             except db_models.ParticipantLoginFailed:
 
+                db_models.ActivityLog.add_event(0, "participant", "PARTICIPANT LOGIN FAIL:  Url key {} incorrect PIN".format( participant_url_key), request.remote_addr)
+
                 return render_template('participant/participant_login.html', hide_nav_links=True, participant_url_key=participant_url_key, pin_error=True, page_data=page_data)
 
             except db_models.ParticipantNotActive:
+
+                db_models.ActivityLog.add_event(0, "participant", "PARTICIPANT LOGIN FAIL: Using url key {} no longer active".format(participant_url_key), request.remote_addr)
+
                 return render_template('participant/error.html', hide_nav_links=True, error_messages=["We're really sorry but your PIN seems to have expired.", "If you believe that this is a mistake and that you should still be able to take part in your research then please contact your researcher by replying to the email that contained your link to this project."], page_data=page_data, participant_url_key=participant_url_key), 403
 
-            except Exception as e:
+            except Exception:
                 return render_template('participant/participant_login.html', hide_nav_links=True, page_data=page_data)
 
 
     else:
+
+        db_models.ActivityLog.add_event(0, "participant",
+                                        "LOGIN FAIL: Unknown participant attempted to login using url key {}".format(participant_url_key), request.remote_addr)
+
         return render_template('participant/error.html', hide_nav_links=True, error_messages=[
             "We could not find any research projects that match the URL you have entered.",
             "If you believe that you should be able to access this project then please check that you haven't been sent a more recent login URL via email."],page_data=page_data, participant_url_key=participant_url_key), 404
@@ -188,17 +189,27 @@ def participant_moment_capture_media():
     # Make path within temporary folder to save uploaded file
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
+    image_exts = ['PNG', 'JPG', 'JPEG']
+    video_exts = ['MOV', 'MP4', 'M4V']
+
     try:
         f = request.files['file']
-
+        is_image = f.filename[-3:].upper() in image_exts or f.filename[-4:].upper() in image_exts
         if f:
-            if f.filename[-3:].upper() in ['PNG', 'JPG', 'MOV', 'MP4', 'M4V'] or f.filename[-4:].upper() in ['JPEG']:
+            if is_image or f.filename[-3:].upper() in video_exts:
                 filename = str(participant.id) + "_" + secure_filename(f.filename)
-                f.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                # TODO: If an image, generate a thumbnail of the image, save within the temp upload folder and return path to the thumbnail
-                # so that it can be shown within the upload form.
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                f.save(filepath)
+                thumbnail_path = None
+                # If an image, attempt to rotate based on exif data
+                if is_image:
+                    db_models.MomentMedia.rotate_image_based_on_exif(filepath)
+                    # TODO: If an image, generate a thumbnail of the image, save within the temp upload folder and return path to the thumbnail
+                    # so that it can be shown within the upload form.
+                    db_models.MomentMedia.generate_image_thumbnail_jpeg(filepath, "{}_thumb.jpg".format(filepath), "small")
+                    thumbnail_path = "{}_thumb.jpg".format(filename)
 
-                return json.dumps({'file_path': filename})
+                return json.dumps({'file_path': filename, 'thumbnail':thumbnail_path})
             else:
                 return json.dumps({'error':'Uploaded files must end in .png, .jpg, .jpeg, .mov, .mp4 or .m4v', 'error_code':'501', 'filename': f.filename})
 

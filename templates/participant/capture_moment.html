@@ -13,12 +13,32 @@
                 e.preventDefault();
                 get_location_for_moment_capture();
             })
+
+            $('#cancel_button').click(function (e){
+                e.preventDefault();
+                if (confirm("Are you sure you wish to cancel adding this moment?")){
+                    remove_uploaded_file();
+                    window.history.back();
+                }
+            })
+
             disable_save_button();
             upload_files_attempt();
+
         });
 
         function clear_bottom_margin() {
             $(".container-fluid").css('margin-bottom', '20px');
+        }
+
+        function confirm_cancel(e){
+            e.preventDefault();
+            if (confirm("Are you sure you wish to cancel adding this moment?")){
+                remove_uploaded_file();
+            }
+            else {
+
+            }
         }
 
         function enable_save_button() {
@@ -65,7 +85,6 @@
                 $('#star_5').html('&#x2605;');
             }
 
-            console.log(value);
         }
 
 
@@ -117,7 +136,7 @@
 
     </div>
     <div id="cancel_button" class="mt-4">
-        <a href="/p/moments" class="btn btn-block btn-sm btn-link" role="button" onclick="remove_uploaded_file()">Cancel
+        <a href="/p/moments" class="btn btn-block btn-sm btn-link" role="button" id="cancel_button">Cancel
             and return to
             moments</a>
     </div>
