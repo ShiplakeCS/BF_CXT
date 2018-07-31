@@ -66,20 +66,20 @@
                         </div>
                     </div>
                     <hr>
-                    <div id='project_status' class="small">
+                    <div id='project_status' class="">
                         <h6>Project status</h6>
                         <div class="row">
                             <div class="col">{% if project.active %}<span class="badge badge-success mr-2">Active</span>
                                 <a href="javascript:set_project_activation({{ project.id }}, 'false');"
-                                   class="text-secondary">Archive project</a>{% else %}
+                                   class="text-secondary small">Archive project</a>{% else %}
                                 <span class="badge badge-secondary mr-2">Archived</span>
                                 <a href="javascript:set_project_activation({{ project.id }}, 'true');"
-                                   class="text-secondary">Make project active</a>{% endif %}
+                                   class="text-secondary small">Make project active</a>{% endif %}
 
                             </div>
 
-                            <div class="col">Last activity: <span
-                                    id="project_last_activity_ts"></span></div>
+                            <div class="col"><span class="small">Last activity: </span><span
+                                    id="project_last_activity_ts" class="small"></span></div>
                         </div>
                         <div class="row">
                             <div class="col">

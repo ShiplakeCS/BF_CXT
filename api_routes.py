@@ -353,7 +353,7 @@ def get_project_participants(project_id):
 
         return json.dumps({"error_code":"201", "error_text":"No project found with ID {}".format(project_id)}), 404
 
-@app.route('/api/projects/<proj_id>/moments', methods=['GET','POST'])
+@app.route('/api/projects/<proj_id>/moments', methods=['GET'])
 def get_project_moments(proj_id):
 
     if not auth_consultant():
@@ -369,7 +369,7 @@ def get_project_moments(proj_id):
     else:
         order = "asc"
 
-    # Get moments for a project, excluding those in the list
+    # Get moments for a project, since the specified moment id
     moments = db_models.Moment.get_moments_for_project(proj_id, since_moment_id)
 
     moment_dicts = []
@@ -380,6 +380,43 @@ def get_project_moments(proj_id):
         moment_dicts.append(m_dict)
 
     return json.dumps(moment_dicts, indent=4)
+
+@app.route('/api/projects/<proj_id>/moments/<moment_id>/comments/', methods=['post'])
+def add_project_moment_comment(proj_id, moment_id):
+
+    if not auth_consultant():
+        abort(401)
+
+    consultant = get_active_consultant()
+
+    try:
+        comment_id = db_models.Moment(moment_id).add_comment(request.values['comment_text'], consultant)
+        return str(comment_id)
+
+    except db_models.ConsultantNotAssignedToProjectError:
+        return 'Only assigned consultants can comment on project moments', 401
+
+
+@app.route('/api/projects/<proj_id>/moments/comments/', methods=['get'])
+def get_project_moment_comments(proj_id):
+
+    if not auth_consultant():
+        abort(401)
+
+    if 'since_comment_id' in request.values:
+        since_comment_id = request.values['since_comment_id']
+    else:
+        since_comment_id = 0
+
+    if 'order' in request.values:
+        order = request.values['order']
+    else:
+        order = "asc"
+
+    comments = db_models.MomentComment.get_comments_for_project(proj_id, since_comment_id, order)
+
+    return json.dumps([c.to_dict() for c in comments['comments']], indent=4)
+
 
 @app.route('/api/projects/<proj_id>/moments/<moment_id>/mark_download', methods=['post'])
 def set_project_moment_active_state(proj_id, moment_id):

@@ -2816,6 +2816,44 @@ class MomentComment:
 
         return json.dumps(c_dicts, indent=4)
 
+    @staticmethod
+    def get_comments_for_project(project_id, since_id=0, order='asc'):
+
+        comments_list = []
+
+        if order.lower() == 'asc':
+            order = "MomentComment.id ASC"
+        else:
+            order = "MomentComment.id DESC"
+
+        comments_with_metadata = {
+            'highest_comment_id': None,
+            'lowest_comment_id': None,
+            'count': None,
+            'project_id': project_id,
+            'since_id_given': since_id,
+            'order': order,
+            'comments': comments_list
+        }
+
+        db = DB.get_db()
+        rows = db.execute("SELECT MomentComment.id as comment_id FROM MomentComment, Moment, Participant WHERE MomentComment.moment=Moment.id AND Moment.participant = Participant.id AND Participant.project = ? AND MomentComment.id > ? ORDER BY ?", [project_id, since_id, order]).fetchall()
+
+        if rows:
+            for r in rows:
+                comments_list.append(MomentComment(r['comment_id']))
+
+            comments_with_metadata = {
+                'highest_comment_id': comments_list[-1].id if comments_list[-1].id > comments_list[0].id else comments_list[0].id,
+                'lowest_comment_id': comments_list[0].id if comments_list[0].id < comments_list[-1].id else comments_list[-1].id,
+                'count': len(comments_list),
+                'project_id': project_id,
+                'since_id_given': since_id,
+                'order': order,
+                'comments': comments_list
+            }
+
+        return comments_with_metadata
 
     @staticmethod
     def add_new_to_db(moment_id, author_id, consultant_author: bool, text: str):
