@@ -308,7 +308,30 @@ def get_project_consultants(project_id):
     except db_models.ProjectNotFound:
         return json.dumps({"error_code":201, "error_text": "No project found with ID {}".format(project_id)}), 404
 
-@app.route('/api/projects/<project_id>/participants', methods=['GET'])
+@app.route('/api/projects/<project_id>/activate', methods=['POST'])
+def set_project_active_state(project_id):
+
+    if not auth_consultant():
+        abort(401)
+
+    p = db_models.Project(project_id)
+
+    try:
+        if request.values['active'].lower() == 'true':
+            p.activate(get_active_consultant())
+        elif request.values['active'].lower() == 'false':
+            p.deactivate(get_active_consultant())
+
+        p.update_in_db()
+
+        return str(p.active)
+
+    except db_models.ProjectActivationError:
+        return 'Consultant not authorised to set the active state of this project', 401
+    except ValueError:
+        abort(400)
+
+@app.route('/api/projects/<project_id>/participants/', methods=['GET'])
 def get_project_participants(project_id):
 
     if not auth_consultant():
@@ -330,6 +353,48 @@ def get_project_participants(project_id):
 
         return json.dumps({"error_code":"201", "error_text":"No project found with ID {}".format(project_id)}), 404
 
+@app.route('/api/projects/<proj_id>/moments', methods=['GET','POST'])
+def get_project_moments(proj_id):
+
+    if not auth_consultant():
+        abort(401)
+
+    if 'since_moment_id' in request.values:
+        since_moment_id = request.values['since_moment_id']
+    else:
+        since_moment_id = 0
+
+    if 'order' in request.values:
+        order = request.values['order']
+    else:
+        order = "asc"
+
+    # Get moments for a project, excluding those in the list
+    moments = db_models.Moment.get_moments_for_project(proj_id, since_moment_id)
+
+    moment_dicts = []
+
+    for m in moments['moments']:
+        m_dict = m.to_dict()
+        m_dict['participant_display_name'] = db_models.Participant(m.parent_participant_id).display_name
+        moment_dicts.append(m_dict)
+
+    return json.dumps(moment_dicts, indent=4)
+
+@app.route('/api/projects/<proj_id>/moments/<moment_id>/mark_download', methods=['post'])
+def set_project_moment_active_state(proj_id, moment_id):
+
+    if not auth_consultant():
+        abort(401)
+
+    try:
+        m = db_models.Moment(moment_id)
+        m.mark_for_download = 1 if request.values['mark_download'] == 'true' else 0
+        m.update_in_db()
+        return m.to_json()
+
+    except db_models.MomentNotFoundError:
+        abort(404)
 
 ## Client routes
 

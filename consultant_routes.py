@@ -1,4 +1,4 @@
-from flask import session, abort, render_template, url_for, redirect, request
+from flask import session, abort, render_template, url_for, redirect, request, send_file
 from datetime import datetime
 from cxt_app import app, db_models
 import json
@@ -32,6 +32,56 @@ def get_active_consultant():
         return db_models.Consultant(session['active_consultant'])
     else:
         return None
+
+
+## Project pages
+
+@app.route('/projects/<proj_id>/')
+def project_page(proj_id):
+
+    c = get_active_consultant()
+    if not c:
+        return redirect(url_for('consultant_login'))
+
+    try:
+        p = db_models.Project(proj_id)
+        # Get names of consultants for this project
+
+        p_dict = p.to_dict()
+        p_dict['consultants'] = [c.to_dict() for c in p.consultants]
+        print(p_dict)
+        return render_template('dashboard/project.html', project=p_dict, consultant=c.to_dict(), active_projects=c.get_active_project_details(), page_data=get_page_data())
+
+    except db_models.ProjectNotFound:
+        # TODO: 404 project not found page
+        return render_template('dashboard/project.html', project=None, consultant=c.to_dict(), active_projects=c.get_active_project_details(), page_data=get_page_data())
+
+@app.route('/projects/<proj_id>/moments/html')
+def project_moments_feed(proj_id):
+
+    c = get_active_consultant()
+    if not c:
+        return redirect(url_for('consultant_login'))
+
+    return render_template('dashboard/moments_frame.html', project_id=proj_id)
+
+
+@app.route('/projects/<proj_id>/download')
+def project_download(proj_id):
+
+    c = get_active_consultant()
+    if not c:
+        return redirect(url_for('consultant_login'))
+
+    try:
+        p = db_models.Project(proj_id)
+        download_path = p.generate_download_bundle()
+        return send_file(download_path, as_attachment=True)
+
+    except db_models.ProjectNotFound:
+        return redirect('/projects/{}/'.format(proj_id)), 404
+
+
 
 
 ## Login and logout

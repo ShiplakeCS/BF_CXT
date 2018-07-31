@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Moments feed</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js"></script>
+
+    <script>
+        function generate_project_moments(project_id, since_moment_id, order) {
+            $.post('/api/projects/' + project_id + '/moments', {since_moment_id: since_moment_id, order: order},
+                function (data, status, xhr) {
+                    var moments = data;
+                    for (i = 0; i < moments.length; i++) {
+                        var m = moments[i];
+                        $('#moments').prepend(render_moment_html(m));
+                    }
+                }, 'json');
+
+        }
+
+        function set_moment_mark_for_download_state(project_id, m_id){
+            console.log("Changing mark for download state of moment "+ m_id);
+
+            if ($('#moment_' + m_id + '_mark_for_download').prop("checked")){
+                var mark_for_download = true;
+            }
+            else{
+                var mark_for_download = false;
+            }
+
+            $.post('/api/projects/' + project_id + '/moments/' + m_id + '/mark_download', {mark_download: mark_for_download});
+        }
+
+        function render_moment_html(m) {
+            var moment_html = '<div class="moment_card card mb-4 participant_' + m.parent_participant_id + '" id="moment_' + m.id + '">';
+
+            // MOMENT CARD HEADER
+
+            var modified_date = new Date(m.modified_ts + "Z");
+
+            moment_html += '<div class="card-header"> <span class="font-weight-bold mr-2">'+ m.participant_display_name +'</span>';
+
+            moment_html += '<span class="text-muted">' + modified_date.toLocaleDateString() + ' ' + String(modified_date.getHours()).padStart(2, "0") + ':' + String(modified_date.getMinutes()).padStart(2, "0") + '</span>' +
+                '<span class="float-right text-muted" style="font-family:sans-serif">';
+
+            // Generate ratings stars: Filled in stars
+            for (var r = 0; r < m.rating; r++) {
+                moment_html += '&#x2605;';
+            }
+            // Generate ratings stars: empty in stars
+            for (var r = 0; r < (5 - m.rating); r++) {
+                moment_html += '&#x2606;';
+            }
+
+            moment_html += '</span>' +
+                '</div>';
+
+            ////// MOMENT CARD BODY
+            moment_html += '<div class="card-body">' +
+                '<p class="card-text">' + m.text + '</p>';
+
+            //TODO: Replace with dynamically loaded moment media for each one found in m.media
+            for (var media_num = 0; media_num < m.media.length; media_num++) {
+
+                // if image...
+
+                if (m.media[media_num].media_type == 'image') {
+                    moment_html += '<a href="/api/participants/' + m.parent_participant_id + '/moments/' + m.id + '/media/' + m.media[media_num].id + '/original" aria-label="original thumbnail" target="_blank"><img class="card-img-bottom mb-2 img-thumbnail" src="/api/participants/' + m.parent_participant_id + '/moments/' + m.id + '/media/' + m.media[media_num].id + '/large" alt="Moment image" style="width:100%"></a>';
+
+                }
+                //if video...
+                else if (m.media[media_num].media_type == 'video') {
+                    moment_html += '<video width="100%" controls <!--preload="none"-->><source src="/api/participants/' + m.parent_participant_id + '/moments/' + m.id + '/media/' + m.media[media_num].id + '/video/video.mp4" type="video/mp4"></video>';
+                }
+
+
+            }
+            moment_html += '<div id="moment_'+m.id+'_metadata_area"><div id="moment_' + m.id + '_location" class="d-inline-block">';
+            if (m.gps.lat != null) {
+                moment_html += '<a href="https://www.google.com/maps/search/?api=1&query=' + m.gps.lat + ',' + m.gps.long + '" class="text-muted" target="_blank">&#x1F4CD; Location captured</a>';
+            }
+
+            moment_html += '</div>'; // Close location info div
+            moment_html += '<div id="moment_' + m.id + '_download_tick" class="float-right">';
+            moment_html += '<div class="custom-control custom-checkbox"><input type="checkbox" class="custom-control-input" id="moment_'+m.id+'_mark_for_download" name="moment_'+m.id+'_mark_for_download"';
+            if (m.mark_for_download){
+                moment_html += ' checked ';
+            }
+            moment_html += ' onclick="set_moment_mark_for_download_state({{ project_id }}, ' + m.id + ')"><label class="custom-control-label text-muted" for="moment_'+m.id+'_mark_for_download">Include in project download</label></div>';
+
+            moment_html += '</div>'; // close download tick div
+            moment_html += '</div>'; // Close metadata area div
+            moment_html += '</div>';
+
+            ////// MOMENT CARD FOOTER
+            // generate moment card footer as placeholder for comments
+
+            moment_html += '<div class="card-footer small">' +
+                '<span id = "moment_' + m.id + '_new_comment_indicator" class="text-info d-none">&#9679;</span>' +
+                '<button id="moment_' + m.id + '_show_comments_button" data-toggle="collapse" data-target="#moment_' + m.id + '_comments" class="btn btn-secondary btn-sm">' +
+                'Comments <span id="moment_' + m.id + '_comments_count_label" class="badge badge-light">0</span></button>' +
+                //'<button id="delete_moment_' + m.id + '_button" class="btn btn-sm float-right align-middle" onclick="delete_moment(' + m.id + ')">Delete</button>' +
+                '<div id="moment_' + m.id + '_comments" class="mt-2 collapse">' +
+                '<div id="moment_' + m.id + '_comments_form">' +
+                '<div>\n' +
+                '<label for="new_comment">Add comment:</label>\n' +
+                '<textarea id="moment_' + m.id + '_new_comment" class="form-control mb-2" rows="2" name="comment_text"></textarea><button id="moment_' + m.id + '_save_comment_button" class="btn btn-info btn-sm btn-block text-light" onclick=process_new_comment(' + m.id + ',' + m.parent_participant_id + ')>Save comment</button>\n' +
+                '</div>' +
+                '</div></div></div>';
+
+            moment_html += '</div>';
+
+            return moment_html;
+        }
+
+        $(generate_project_moments({{ project_id }}, 0, 'asc'));
+
+
+    </script>
+
+</head>
+<body>
+{% if project_id %}<input type="hidden" name="project_id" value="{{ project_id }}"/>{% endif %}
+
+<div id="moments">
+
+<!-- Moments will be shown here -->
+
+</div>
+
+</body>
+</html>

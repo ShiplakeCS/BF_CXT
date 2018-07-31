@@ -5,6 +5,7 @@ $(function () {
     update_copyright_date_in_footer();
     // Attach change password submit button function
     $('#change_password_form').find('input[type=submit]').click(process_change_password);
+    // Add list of participants for this project to sessionStorage
 })
 
 function update_copyright_date_in_footer() {
@@ -16,7 +17,7 @@ function update_copyright_date_in_footer() {
 
 function process_change_password(e) {
     e.preventDefault();
-    console.log('submit attempted');
+
     var form_data = $('#change_password_form').serialize();
 
     if ($('[name=confirm_pass]').val() != $('[name=new_pass]').val()) {
@@ -38,20 +39,103 @@ function process_change_password(e) {
             data: $('#change_password_form').serialize(),
             type: 'POST',
             success: function (response) {
-                console.log(response);
+
                 // reset change password form and hide modal
                 $('#change_password_form').find('input[type=password]').val('');
                 $('#cancel_change_password_button').trigger('click');
 
             },
             error: function (error) {
-                console.log(error);
+
                 $('#change_password_form').prepend('<div id="change_password_error" class="alert alert-danger mx-4">' + error.responseText + '</div>');
-                $('#change_password_form').find('input').click(function(){
+                $('#change_password_form').find('input').click(function () {
                     $('#change_password_error').remove();
                 })
             }
         });
     }
 
+}
+
+function update_project_status_activity(iso_date) {
+
+    var d = new Date(iso_date + "Z");
+
+    $('#project_last_activity_ts').text(d.toLocaleDateString() + " " +
+        String(d.getHours()).padStart(2, "0") + ":" +
+        String(d.getMinutes()).padStart(2, "0"));
+}
+
+function set_project_activation(proj_id, active) {
+
+    console.log('attempt to set project activation to: ' + active);
+
+    $.ajax({
+        url: '/api/projects/' + proj_id + '/activate',
+        data: {'active': active},
+        type: 'POST',
+        success: function (response) {
+
+            // reset change password form and hide modal
+            console.log(response.responseText);
+            location.reload();
+
+        },
+        error: function (error) {
+
+            console.log(error.responseText);
+        }
+    });
+
+}
+
+function refresh_participants() {
+
+    // Get list of participants for this project
+    $.get({
+            url: '/api/projects/' + $("#project_id").val() + '/participants/',
+            success: function (participants) {
+
+                for (i = 0; i < participants.length; i++) {
+                    var p = participants[i];
+                    $('#participant_info_card').find('.card-body').append(render_participant_details(p));
+                    if (i < participants.length -1){
+                        $('#participant_info_card').find('.card-body').append('<hr>');
+                    }
+                }
+            },
+            dataType: 'json'
+        }
+    );
+}
+
+function render_participant_details(p){
+
+    // Start participant div
+    var html = '<div id="participant_' + p.id + '_details">';
+    // Header
+    html += '<div id="participant_'+ p.id +'_header" class="mb-2">';
+    html += '<h6 style="margin-bottom: 0px;">' + p.within_project_number + ' - ' + p.display_name;
+    html += '<div id="participant_'+p.id+'_header_info" class="d-inline-block"><span class="badge badge-pill badge-info ml-2 align-top">' + p.moments_count +'</span>';
+
+    if (p.active) {
+
+        html += '<span class="badge badge-success ml-2 align-top">Active</span>';
+    }
+    else{
+        html += '<span class="badge badge-secondary ml-2 align-top">Inactive</span>';
+    }
+    html += '</div></h6><span class="small text-muted" id="participant_'+ p.id +'_description">'+p.description+'</span></div>';
+
+    // Info
+
+    var activity = new Date(p.last_activity_ts + "Z");
+
+    html += '<div class="row small">';
+    html += '<div class="col-3">Internal ID: '+ p.id +'</div>';
+    html += '<div class="col">Last activity: '+ activity.toLocaleDateString() + ' ' + String(activity.getHours()).padStart(2, "0")+ ':'+ String(activity.getMinutes()).padStart(2,"0")+'</div>';
+    html += '<div class="col-2"><a href="" class="text-body">Edit</a></div>';
+    html += '</div></div>';
+
+    return html;
 }

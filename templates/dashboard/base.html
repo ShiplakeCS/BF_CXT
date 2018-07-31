@@ -21,6 +21,26 @@
     <!-- Custom styles for this template-->
     <link href="/static/style/sb-admin.css" rel="stylesheet">
 
+        <!-- jQuery library -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+    <!-- Popper JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.0/umd/popper.min.js"></script>
+
+    <!-- Latest compiled JavaScript -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js"></script>
+
+    <!-- Core plugin JavaScript-->
+    <script src="/static/js/jquery-easing/jquery.easing.min.js"></script>
+
+    <!-- Page level plugin JavaScript-->
+    <script src="/static/js/chart.js/Chart.min.js"></script>
+    <script src="/static/js/datatables/jquery.dataTables.js"></script>
+    <script src="/static/js/datatables/dataTables.bootstrap4.js"></script>
+
+    <!-- Custom scripts for all pages-->
+    <script src="/static/js/sb-admin.min.js"></script>
+
 </head>
 
 <body id="page-top">
@@ -105,6 +125,14 @@
                 <span>Home</span>
             </a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link" href="/">
+                <i class="fas fa-fw fa-plus-square"></i>
+                <span>Add new project</span>
+            </a>
+        </li>
+
+
 
         {% if active_projects %}
             <li class="nav-item dropdown">
@@ -151,7 +179,7 @@
                 {% endblock %}
 
             </div>
-
+            <div class="row mt-4"></div> <!-- spacer before footer -->
             <!-- Sticky Footer -->
             <footer class="sticky-footer">
                 <div class="container my-auto">
@@ -240,26 +268,8 @@
     </div>
 
 {% endif %}
-    <!-- Bootstrap core JavaScript-->
-    <!-- jQuery library -->
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
 
-    <!-- Popper JS -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.0/umd/popper.min.js"></script>
 
-    <!-- Latest compiled JavaScript -->
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js"></script>
-
-    <!-- Core plugin JavaScript-->
-    <script src="/static/js/jquery-easing/jquery.easing.min.js"></script>
-
-    <!-- Page level plugin JavaScript-->
-    <script src="/static/js/chart.js/Chart.min.js"></script>
-    <script src="/static/js/datatables/jquery.dataTables.js"></script>
-    <script src="/static/js/datatables/dataTables.bootstrap4.js"></script>
-
-    <!-- Custom scripts for all pages-->
-    <script src="/static/js/sb-admin.min.js"></script>
 
     <!-- Demo scripts for this page-->
     <script src="js/demo/datatables-demo.js"></script>

@@ -1,0 +1,147 @@
+{% extends 'dashboard/base.html' %}
+
+{% block breadcrumb_links %}
+    <li class="breadcrumb-item"><a href="/projects/">Projects</a></li>
+    {% if project %}
+        <li class="breadcrumb-item active">{{ project.code }}</li>
+    {% else %}
+        <li class="breadcrumb-item active">Project not found</li>
+    {% endif %}
+{% endblock %}
+
+{% block page_content %}
+
+    {% if project %}
+        <input type="hidden" id="project_id" name="project_id" value="{{ project.id }}"/>
+        <!-- Left hand panels -->
+        <div class="col-lg-5 col-md">
+
+            <!-- Project information card -->
+
+            <div class="card" id="project_info_card">
+                <div class="card-header">
+
+                    <a class="card-link text-body" data-toggle="collapse" href="#project_info">
+                        Project information
+                    </a>
+
+                    <a href="/projects/{{ project.id }}/edit"
+                       class="btn btn-sm btn-primary float-right">Edit</a>
+                </div>
+                <div class="card-body collapse show" id="project_info">
+
+                    <h5><a href="/clients/{{ project.client.id }}/"
+                           class="text-body">{{ project.client.description }}</a> <span
+                            class="small">{{ project.code }}</span></h5>
+                    <span>{{ project.title }}</span>
+                    <br>
+
+                    <a href="/projects/{{ project.id }}/download" class="small mt-2"><i class="fas fa-download"></i>
+
+                        Download project bundle</a>
+
+
+                    <hr>
+                    <div class="small">
+                        <h6>Assigned consultants</h6>
+                        <div class="row">
+                            {% for c in project.consultants %}
+                                <div class="col">
+                                    <a href="/projects/consultants/{{ c.id }}"
+                                       class="text-body">{{ c.first_name }} {{ c.last_name }} ({{ c.display_name }})</a>
+                                </div>
+                                {% if loop.index % 3 == 0 %}</div>
+                                    <div class="row">{% endif %}
+                            {% endfor %}
+                            </div>
+                    </div>
+                    <hr>
+                    <div class="small">
+                        <h6>Client details</h6>
+                        Client contact: {{ project.client.contact_name }}
+                        <div class="row">
+                            <div class="col">Phone: {{ project.client.contact_phone }}</div>
+                            <div class="col">Email: <a href="mailto:{{ project.client.contact_email }}"
+                                                       class="text-body">{{ project.client.contact_email }}</a></div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div id='project_status' class="small">
+                        <h6>Project status</h6>
+                        <div class="row">
+                            <div class="col">{% if project.active %}<span class="badge badge-success mr-2">Active</span>
+                                <a href="javascript:set_project_activation({{ project.id }}, 'false');"
+                                   class="text-secondary">Archive project</a>{% else %}
+                                <span class="badge badge-secondary mr-2">Archived</span>
+                                <a href="javascript:set_project_activation({{ project.id }}, 'true');"
+                                   class="text-secondary">Make project active</a>{% endif %}
+
+                            </div>
+
+                            <div class="col">Last activity: <span
+                                    id="project_last_activity_ts"></span></div>
+                        </div>
+                        <div class="row">
+                            <div class="col">
+
+                            </div>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            <!--<div class="card-footer">Footer</div>-->
+
+
+            <!-- Participant information card -->
+            <div class="card mt-4" id="participant_info_card">
+                <div class="card-header">
+                    <a class="card-link text-body" data-toggle="collapse" href="#participant_info">
+                        Participants
+                    </a>
+                    <button class="btn btn-primary btn-sm float-right">+ Add</button>
+                </div>
+                <div class="card-body collapse show" id="participant_info">
+                    <!-- participant details added here by refresh_participants() -->
+                </div>
+                <!--<div class="card-footer">Footer</div>-->
+            </div>
+
+        </div>
+
+        <!-- Right hand panel - moment feed -->
+        <div class="col">
+            <div class="card" style="height:100%">
+                <div class="card-header">
+                    Participant moments
+                </div>
+                <div class="card-body h-100">
+                    <iframe src="/projects/{{ project.id }}/moments/html"
+                            style="width:100%;height:100%;margin-top:0px;margin-bottom:2px" class="border-0"></iframe>
+                </div>
+            </div>
+
+        </div>
+
+        <script>
+            $(function () {
+                update_project_status_activity('{{ project.last_activity_ts }}');
+                refresh_participants();
+            });
+        </script>
+
+
+    {% else %}
+        <div class="col">
+            <h1>Lost something?</h1>
+            <p>We couldn't find the project that you were looking for. Please check that your link has the correct
+                project
+                ID number, not BF code within the URL.</p>
+            <a href="javascript:history.back()">Go back to the previous page</a>
+            or <a href="/">return home</a>.</p>
+        </div>
+
+    {% endif %}
+
+{% endblock %}

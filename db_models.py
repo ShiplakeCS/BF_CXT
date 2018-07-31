@@ -940,7 +940,8 @@ class Participant:
             "description": self.description,
             "login_url": self.login_url,
             "pin": self.pin,
-            "download_bundle_path": self.download_bundle_path
+            "download_bundle_path": self.download_bundle_path,
+            "moments_count": len(self.moments)
         }
 
     def to_json(self):
@@ -1134,7 +1135,7 @@ class Project:
 
         try:
             self.__participants = Participant.get_participants_for_project(self.id)
-            self.update_last_activity_ts()
+            #self.update_last_activity_ts()
         # If there are no participants assigned to this project then
         # Participant.get_participants_for_project() will throw a ProjectNotFound exception,
         # which can be ignored.
@@ -2243,6 +2244,33 @@ class Moment:
 
         return True if moment_details else False
 
+    @staticmethod
+    def get_moments_for_project(project_id, since_moment_id = 0, order = "asc"):
+
+        moment_list = []
+        moments_with_metadata = {
+            'lowest_moment_id': None,
+            'highest_moment_id': None,
+            'since_moment_id_given': since_moment_id,
+            'project_id': project_id,
+            'moments': moment_list
+        }
+
+        db = DB.get_db()
+        rows = db.execute("SELECT Moment.id as moment_id FROM Moment, Participant WHERE Moment.participant = participant.id AND Participant.project=? AND Moment.id > ? ORDER BY ?", [project_id, since_moment_id, order])
+        if rows:
+            for r in rows:
+                moment_list.append(Moment(r['moment_id']))
+
+            moments_with_metadata = {
+                'lowest_moment_id': moment_list[0].id if moment_list[0].id < moment_list[-1].id else moment_list[-1].id,
+                'highest_moment_id': moment_list[-1].id if moment_list[-1].id > moment_list[0].id else moment_list[0].id,
+                'since_moment_id_given': since_moment_id,
+                'project_id': project_id,
+                'moments': moment_list
+            }
+
+        return moments_with_metadata
 
 class MomentMediaNotFoundError(Exception):
     pass
