@@ -99,7 +99,7 @@ function refresh_participants() {
                 for (i = 0; i < participants.length; i++) {
                     var p = participants[i];
                     $('#participant_info_card').find('.card-body').append(render_participant_details(p));
-                    if (i < participants.length -1){
+                    if (i < participants.length - 1) {
                         $('#participant_info_card').find('.card-body').append('<hr>');
                     }
                 }
@@ -109,33 +109,53 @@ function refresh_participants() {
     );
 }
 
-function render_participant_details(p){
+function render_participant_details(p) {
 
     // Start participant div
     var html = '<div id="participant_' + p.id + '_details">';
     // Header
-    html += '<div id="participant_'+ p.id +'_header" class="mb-2">';
+    html += '<div id="participant_' + p.id + '_header" class="mb-2">';
     html += '<h6 style="margin-bottom: 0px;">' + p.within_project_number + ' - ' + p.display_name;
-    html += '<div id="participant_'+p.id+'_header_info" class="d-inline-block"><span class="badge badge-pill badge-info ml-2 align-top">' + p.moments_count +'</span>';
+    html += '<div id="participant_' + p.id + '_header_info" class="d-inline-block"><span class="badge badge-pill badge-info ml-2 align-top">' + p.moments_count + '</span>';
 
     if (p.active) {
 
-        html += '<span class="badge badge-success ml-2 align-top">Active</span>';
+        html += '<a id="participant_' + p.id + '_active_badge" class="badge badge-success ml-2 align-top" href="javascript:set_participant_active_state(' + p.id + ', \'false\');">Active</a>';
     }
-    else{
-        html += '<span class="badge badge-secondary ml-2 align-top">Inactive</span>';
+    else {
+        html += '<a id="participant_' + p.id + '_active_badge" class="badge badge-secondary ml-2 align-top" href="javascript:set_participant_active_state(' + p.id + ', \'true\');">Inactive</a>';
     }
-    html += '</div></h6><span class="small text-muted" id="participant_'+ p.id +'_description">'+p.description+'</span></div>';
+    html += '</div></h6><span class="small text-muted" id="participant_' + p.id + '_description">' + p.description + '</span></div>';
 
     // Info
 
     var activity = new Date(p.last_activity_ts + "Z");
 
     html += '<div class="row small">';
-    html += '<div class="col-3">Internal ID: '+ p.id +'</div>';
-    html += '<div class="col">Last activity: '+ activity.toLocaleDateString() + ' ' + String(activity.getHours()).padStart(2, "0")+ ':'+ String(activity.getMinutes()).padStart(2,"0")+'</div>';
+    html += '<div class="col-3">Internal ID: ' + p.id + '</div>';
+    html += '<div class="col">Last activity: ' + activity.toLocaleDateString() + ' ' + String(activity.getHours()).padStart(2, "0") + ':' + String(activity.getMinutes()).padStart(2, "0") + '</div>';
     html += '<div class="col-2"><a href="" class="text-body">Edit</a></div>';
     html += '</div></div>';
 
     return html;
+}
+
+function set_participant_active_state(p_id, state) {
+
+    console.log('called set participant active: ' + p_id + ", " + state);
+
+    $.ajax({
+        url: '/api/participants/' + p_id,
+        method: 'put',
+        data: {active: state},
+        success: function (result, status, xhr) {
+            console.log(result);
+            if (JSON.parse(result).active) {
+                $('#participant_' + p_id + '_active_badge').replaceWith('<a id="participant_' + p_id + '_active_badge" class="badge badge-success ml-2 align-top" href="javascript:set_participant_active_state(' + p_id + ', \'false\');">Active</a>');
+            }
+            else {
+                $('#participant_' + p_id + '_active_badge').replaceWith('<a id="participant_' + p_id + '_active_badge" class="badge badge-secondary ml-2 align-top" href="javascript:set_participant_active_state(' + p_id + ', \'true\');">Inactive</a>');
+            }
+        }
+    });
 }

@@ -8,7 +8,8 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.0/umd/popper.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js"></script>
-    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css" integrity="sha384-hWVjflwFxL6sNzntih27bfxkr27PmbbK/iSvJ+a4+0owXq79v+lsFkW54bOGbiDQ" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css"
+          integrity="sha384-hWVjflwFxL6sNzntih27bfxkr27PmbbK/iSvJ+a4+0owXq79v+lsFkW54bOGbiDQ" crossorigin="anonymous">
 
     <script>
         function generate_project_moments(project_id, since_moment_id, order) {
@@ -19,7 +20,15 @@
                         var m = moments[i];
                         $('#moments').prepend(render_moment_html(m));
                         sessionStorage.highest_moment_id = m.id;
+                        // Increase the count of moments in the parent window
+                        $('#moment_counter_badge', window.parent.document).text(parseInt($('#moment_counter_badge', window.parent.document).text()) + 1);
                     }
+                    // Find all elements that end with 'new_comment'
+                    $('div[id$=_comments_form]').find('textarea').keydown(function (e) {
+                            if ((e.metaKey || e.ctrlKey) && e.which == 13) {
+                                $(this).siblings('button').trigger('click');
+                            }
+                        });
                     generate_project_comments({{ project_id }}, sessionStorage.highest_comment_id, 'asc');
                 }, 'json');
 
@@ -34,10 +43,10 @@
                     var comments = data;
                     for (i = 0; i < comments.length; i++) {
                         var c = comments[i];
-                        console.log(c);
+
                         $('#moment_' + c.parent_moment + '_comments_form').before(render_comment_html(c));
                         // Increase counter value for parent moment
-                        $('#moment_'+c.parent_moment+'_comments_count_label').text(parseInt($('#moment_'+c.parent_moment+'_comments_count_label').text()) + 1);
+                        $('#moment_' + c.parent_moment + '_comments_count_label').text(parseInt($('#moment_' + c.parent_moment + '_comments_count_label').text()) + 1);
                         sessionStorage.highest_comment_id = c.id;
                     }
                 }, 'json');
@@ -45,7 +54,6 @@
         }
 
         function set_moment_mark_for_download_state(project_id, m_id) {
-            console.log("Changing mark for download state of moment " + m_id);
 
             if ($('#moment_' + m_id + '_mark_for_download').prop("checked")) {
                 var mark_for_download = true;
@@ -64,10 +72,10 @@
 
             var modified_date = new Date(m.modified_ts + "Z");
 
-            moment_html += '<div class="card-header"> <span class="font-weight-bold mr-2">' + m.participant_display_name + '</span>';
+            moment_html += '<div class="card-header"> <span class="font-weight-bold mr-2">' + m.participant_display_name + '</span>'
 
-            moment_html += '<span class="text-muted">' + modified_date.toLocaleDateString() + ' ' + String(modified_date.getHours()).padStart(2, "0") + ':' + String(modified_date.getMinutes()).padStart(2, "0") + '</span>' +
-                '<span class="float-right text-muted" style="font-family:sans-serif">';
+                +
+                '<span class="ml-2" style="font-family:sans-serif; color:gold;">';
 
             // Generate ratings stars: Filled in stars
             for (var r = 0; r < m.rating; r++) {
@@ -78,7 +86,11 @@
                 moment_html += '&#x2606;';
             }
 
-            moment_html += '</span>' +
+            moment_html += '</span>';
+            moment_html += '<button id="delete_moment_' + m.id + '_button" class="btn btn-sm float-right align-middle btn-outline-danger" onclick="delete_moment({{ project_id }},' + m.id + ')">Delete</button>';
+
+
+            moment_html += '<br><span class="text-muted small">' + modified_date.toLocaleDateString() + ' ' + String(modified_date.getHours()).padStart(2, "0") + ':' + String(modified_date.getMinutes()).padStart(2, "0") + '</span>' +
                 '</div>';
 
             ////// MOMENT CARD BODY
@@ -107,14 +119,18 @@
             }
 
             moment_html += '</div>'; // Close location info div
-            moment_html += '<div id="moment_' + m.id + '_download_tick" class="float-right">';
-            moment_html += '<div class="custom-control custom-checkbox"><input type="checkbox" class="custom-control-input" id="moment_' + m.id + '_mark_for_download" name="moment_' + m.id + '_mark_for_download"';
-            if (m.mark_for_download) {
-                moment_html += ' checked ';
-            }
-            moment_html += ' onclick="set_moment_mark_for_download_state({{ project_id }}, ' + m.id + ')"><label class="custom-control-label text-muted" for="moment_' + m.id + '_mark_for_download">Include in project download</label></div>';
+            if (m.media.length > 0) {
 
-            moment_html += '</div>'; // close download tick div
+                moment_html += '<div id="moment_' + m.id + '_download_tick" class="float-right">';
+                moment_html += '<div class="custom-control custom-checkbox"><input type="checkbox" class="custom-control-input" id="moment_' + m.id + '_mark_for_download" name="moment_' + m.id + '_mark_for_download"';
+                if (m.mark_for_download) {
+                    moment_html += ' checked ';
+                }
+                moment_html += ' onclick="set_moment_mark_for_download_state({{ project_id }}, ' + m.id + ')"><label class="custom-control-label text-muted" for="moment_' + m.id + '_mark_for_download">Include in project download</label></div>';
+
+                moment_html += '</div>'; // close download tick div
+
+            }
             moment_html += '</div>'; // Close metadata area div
             moment_html += '</div>';
 
@@ -125,14 +141,13 @@
                 '<span id = "moment_' + m.id + '_new_comment_indicator" class="text-info d-none">&#9679;</span>' +
                 '<button id="moment_' + m.id + '_show_comments_button" data-toggle="collapse" data-target="#moment_' + m.id + '_comments" class="btn btn-secondary btn-sm">' +
                 'Comments <span id="moment_' + m.id + '_comments_count_label" class="badge badge-light">0</span></button>' +
-                '<button id="delete_moment_' + m.id + '_button" class="btn btn-sm float-right align-middle btn-danger" onclick="delete_moment(' + m.id + ')">Delete Moment</button>' +
+
                 '<div id="moment_' + m.id + '_comments" class="mt-2 collapse">' +
-                '<div id="moment_' + m.id + '_comments_form">' +
-                '<div>\n' +
-                '<label for="new_comment">Add comment:</label>\n' +
-                '<textarea id="moment_' + m.id + '_new_comment" class="form-control mb-2" rows="2" name="comment_text"></textarea><button id="moment_' + m.id + '_save_comment_button" class="btn btn-info btn-sm btn-block text-light" onclick="add_comment_to_moment({{ project_id }},' + m.id + ');">Save comment</button>\n' +
-                '</div>' +
+                // Add comments form
+                '<div id="moment_' + m.id + '_comments_form" class="form-inline my-2">' +
+                '<textarea id="moment_' + m.id + '_new_comment" class="form-control col mr-2" rows="1" name="comment_text" placeholder="Add a new comment..."></textarea><button id="moment_' + m.id + '_save_comment_button" class="btn btn-info btn-sm text-light" onclick="add_comment_to_moment({{ project_id }},' + m.id + ');">Add</button>\n' +
                 '</div></div></div>';
+
 
             moment_html += '</div>';
 
@@ -144,8 +159,8 @@
 
             var comment_html = '<div class="card mb-2" id="moment_' + c.parent_moment + '_comment_' + c.id + '">';
             comment_html += '<div class="card-body"><div class="card-title">' +
-                '<div class="float-right"><button class="btn btn-outline-danger btn-sm"><i class="far fa-trash-alt"></i></button></div>';
-            comment_html += '<span class="font-weight-bold">' + c.display_name + '</span><br/>' + comment_ts.toLocaleDateString() + ' ' + String(comment_ts.getHours()).padStart(2, "0") + ':' + String(comment_ts.getMinutes()).padStart(2, "0");
+                '<div class="float-right"><button class="btn btn-outline-danger btn-sm" onclick="delete_comment({{ project_id }},' + c.parent_moment + ',' + c.id + ');"><i class="far fa-trash-alt"></i></button></div>';
+            comment_html += '<span class="font-weight-bold mr-2">' + c.display_name + '</span><span class="text-muted">' + comment_ts.toLocaleDateString() + ' ' + String(comment_ts.getHours()).padStart(2, "0") + ':' + String(comment_ts.getMinutes()).padStart(2, "0") + '</span>';
             comment_html += '</div>';
             comment_html += '<p class="card-text">' + c.text + '</p>\n';
             comment_html += '</div>';
@@ -164,23 +179,55 @@
 
         }
 
-        function add_comment_to_moment(project_id, moment_id){
+        function add_comment_to_moment(project_id, moment_id) {
 
             var comment_text = $('#moment_' + moment_id + '_new_comment').val()
 
-            if (comment_text.length > 0){
+            if (comment_text.length > 0) {
 
                 $.post(
                     '/api/projects/' + project_id + '/moments/' + moment_id + '/comments/',
                     {comment_text: comment_text},
-                    function(data){
-                        console.log(data);
+                    function (data) {
                         generate_project_comments(project_id, sessionStorage.highest_comment_id, 'asc');
                         $('#moment_' + moment_id + '_new_comment').val('');
                     }
-
                 )
 
+            }
+        }
+
+        function delete_comment(project_id, moment_id, comment_id) {
+
+            if (confirm("Are you sure you want to delete this comment? This cannot be undone.")) {
+                $.ajax({
+                    url: '/api/projects/' + project_id + '/moments/' + moment_id + '/comments/' + comment_id,
+                    method: 'delete',
+                    success: function (result, status, xhr) {
+
+                        $('#moment_' + moment_id + '_comment_' + comment_id).slideUp('fast', function () {
+                            $(this).remove();
+                        });
+                        // Reduce comment count for moment
+                        $('#moment_' + moment_id + '_comments_count_label').text(parseInt($('#moment_' + moment_id + '_comments_count_label').text()) - 1);
+                    }
+                })
+            }
+        }
+
+        function delete_moment(project_id, moment_id) {
+            if (confirm("Are you sure you want to delete this moment? This cannot be undone.")) {
+                $.ajax({
+                    url: '/api/projects/' + project_id + '/moments/' + moment_id,
+                    method: 'delete',
+                    success: function (result, status, xhr) {
+                        $('#moment_' + moment_id).slideUp('slow', function () {
+                            $(this).remove();
+                            $('#moment_counter_badge', window.parent.document).text(parseInt($('#moment_counter_badge', window.parent.document).text()) - 1);
+                        });
+
+                    }
+                });
             }
         }
 

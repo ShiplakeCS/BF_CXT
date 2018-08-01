@@ -80,21 +80,41 @@ def  change_consultant_password(c_id):
 
 ## Participant routes
 
-@app.route('/api/participants/<int:id>', methods=['GET'])
+@app.route('/api/participants/<int:id>', methods=['GET', 'PUT'])
 def get_participant(id):
 
     # Only authorise is a consultant is logged in or a participant has logged in and the currently logged-in
     # participant is the same as the participant's info being requested.
 
-    if auth_consultant() or auth_participant(id):
+    if request.method == "GET":
+        if auth_consultant() or auth_participant(id):
 
-        try:
-            return db_models.Participant(id).to_json()
-        except db_models.ParticipantNotFoundError:
-            return json.dumps({"error_code":"101", "error_text":"No participant found with ID {}".format(id)})
+            try:
+                return db_models.Participant(id).to_json()
+            except db_models.ParticipantNotFoundError:
+                return json.dumps({"error_code":"101", "error_text":"No participant found with ID {}".format(id)})
 
-    else:
-        abort(401)
+        else:
+            abort(401)
+
+    elif request.method == "PUT":
+        # Update participant based on values sent with request
+        if auth_consultant():
+            try:
+                p = db_models.Participant(id)
+
+                if 'active' in request.values:
+                    p.active = True if request.values['active'] == 'true' else False
+
+                p.update_in_db()
+
+                return p.to_json()
+
+            except db_models.ParticipantNotFoundError:
+                abort(404)
+        else:
+            abort(401)
+
 
 
 @app.route('/api/participants/<p_id>/moments/since/<m_id>')
@@ -136,6 +156,7 @@ def delete_participant_moment(p_id, moment_id):
             abort(400)
     else:
         abort(401)
+
 
 
 @app.route('/api/participants/<p_id>/moments/comments/')
@@ -395,6 +416,65 @@ def add_project_moment_comment(proj_id, moment_id):
 
     except db_models.ConsultantNotAssignedToProjectError:
         return 'Only assigned consultants can comment on project moments', 401
+
+
+@app.route('/api/projects/<proj_id>/moments/<moment_id>/comments/<comment_id>', methods=['DELETE'])
+def api_project_moment_comment(proj_id, moment_id, comment_id):
+
+    if not auth_consultant():
+        abort(401)
+
+    if request.method=="DELETE":
+        try:
+            if not db_models.Project(proj_id).consultant_is_assigned(get_active_consultant()):
+                abort(401)
+
+            c = db_models.MomentComment(comment_id)
+
+            if c.parent_moment_id != int(moment_id) or db_models.Moment(moment_id).parent_participant.project_id != int(proj_id):
+                abort(400)
+
+            c.delete_from_db()
+
+            return "MomentComment ID {} deleted".format(c.id), 200
+
+        except db_models.MomentCommentNotFoundError:
+            abort(404)
+        except db_models.ProjectNotFound:
+            abort(404)
+        except db_models.MomentNotFoundError:
+            abort(404)
+        except:
+            abort(400)
+
+
+@app.route('/api/projects/<proj_id>/moments/<moment_id>', methods=['DELETE'])
+def api_projects_moments(proj_id, moment_id):
+
+    if not auth_consultant():
+        abort(401)
+
+    if request.method == "DELETE":
+
+        try:
+            if not db_models.Project(proj_id).consultant_is_assigned(get_active_consultant()):
+                abort(401)
+
+            m = db_models.Moment(moment_id)
+
+            if not m.parent_participant.project_id == int(proj_id):
+                abort(400)
+
+            return m.delete_from_db().to_json()
+
+        except db_models.MomentNotFoundError:
+            abort(404)
+
+        except db_models.ProjectNotFound:
+            abort(404)
+
+        except:
+            abort(400)
 
 
 @app.route('/api/projects/<proj_id>/moments/comments/', methods=['get'])

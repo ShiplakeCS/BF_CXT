@@ -26,7 +26,7 @@
                     </a>
 
                     <a href="/projects/{{ project.id }}/edit"
-                       class="btn btn-sm btn-primary float-right">Edit</a>
+                       class="btn btn-sm btn-outline-primary float-right">Edit</a>
                 </div>
                 <div class="card-body collapse show" id="project_info">
 
@@ -100,7 +100,7 @@
                     <a class="card-link text-body" data-toggle="collapse" href="#participant_info">
                         Participants
                     </a>
-                    <button class="btn btn-primary btn-sm float-right">+ Add</button>
+                    <button class="btn btn-outline-primary btn-sm float-right">+ Add</button>
                 </div>
                 <div class="card-body collapse show" id="participant_info">
                     <!-- participant details added here by refresh_participants() -->
@@ -114,7 +114,11 @@
         <div class="col">
             <div class="card" style="height:100%">
                 <div class="card-header">
-                    Participant moments
+                    <span class="">Participant moments<span id="moment_counter_badge" class="badge badge-pill badge-secondary ml-2 align-middle">0</span></span>
+                    <div id="moment_noficiation" class="float-right">
+
+                        <button class="btn btn-info btn-sm"><i class="far fa-bell mr-2"></i>2</button>
+                    </div>
                 </div>
                 <div class="card-body h-100">
                     <iframe src="/projects/{{ project.id }}/moments/html"

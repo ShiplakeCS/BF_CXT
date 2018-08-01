@@ -24,7 +24,7 @@ def get_active_participant():
 def participant_home():
     p = get_active_participant()
 
-    if p == None:
+    if p == None or not p.active:
         page_data = {}
         return render_template('participant/not_auth.html', hide_nav_links=True, page_data=page_data)
 
@@ -116,7 +116,7 @@ def participant_moments():
     page_data = {
         'support_details': app.config['SUPPORT_DETAILS']
     }
-    if participant == None:
+    if participant == None or not participant.active:
         return render_template('participant/not_auth.html', hide_nav_links=True, page_data=page_data)
 
     project = db_models.Project(participant.project_id)
@@ -138,7 +138,7 @@ def participant_moment_capture():
     page_data = {
         'support_details': app.config['SUPPORT_DETAILS']
     }
-    if participant == None:
+    if participant == None or not participant.active:
         return render_template('participant/not_auth.html', hide_nav_links=True, page_data=page_data)
 
     if request.method == 'GET':
@@ -183,7 +183,7 @@ def participant_moment_capture_media():
     # receive the uploaded file and save in temporary file folder
     participant = get_active_participant()
 
-    if participant == None:
+    if participant == None or not participant.active:
         abort(401)
 
     # Make path within temporary folder to save uploaded file

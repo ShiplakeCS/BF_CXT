@@ -621,7 +621,6 @@ class Participant:
     @active.setter
     def active(self, value: bool):
         self.__active = value
-        self.update_last_activity_ts()
 
     @property
     def last_activity_ts(self):
