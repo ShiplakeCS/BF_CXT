@@ -124,9 +124,10 @@
     </form>
     <div id="media" class="mt-4 form-group">
         <p>Would you like to add a photo or video?</p>
-        <form id="file_upload_form" enctype="multipart/form-data">
-            <input class="form-control" id='file_upload_input' name="file" type="file"
+        <form id="file_upload_form" enctype="multipart/form-data" class="custom-file">
+            <input class="form-control custom-file-input" id='file_upload_input' name="file" type="file"
                    accept=".png,.jpg,.jpeg,.mov,.mp4,.m4v"/>
+            <label class="custom-file-label" for="file_upload_input">Add a photo or video</label>
             <input id="file_upload_button" class="form-control d-none" type="button" value="Upload"/>
         </form>
 

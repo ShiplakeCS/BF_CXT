@@ -374,6 +374,32 @@ def get_project_participants(project_id):
 
         return json.dumps({"error_code":"201", "error_text":"No project found with ID {}".format(project_id)}), 404
 
+@app.route('/api/projects/<project_id>/participants/<participant_id>', methods=["PUT"])
+def api_projects_participant(project_id, participant_id):
+
+    if not auth_consultant():
+        abort(401)
+
+    c = get_active_consultant()
+
+    if not db_models.Project(project_id).consultant_is_assigned(c):
+        abort(401)
+
+    try:
+        p = db_models.Participant(participant_id)
+        if p.project_id != int(project_id):
+            abort(401)
+        p.display_name = request.values['display_name']
+        p.description = request.values['description']
+        p.update_in_db()
+        return p.to_json()
+
+    except db_models.ParticipantNotFoundError:
+        abort(404)
+
+    except Exception as e:
+        return str(e), 400
+
 @app.route('/api/projects/<proj_id>/moments', methods=['GET'])
 def get_project_moments(proj_id):
 

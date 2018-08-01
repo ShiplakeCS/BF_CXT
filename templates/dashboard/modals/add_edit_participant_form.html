@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Add/edit participant form</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css"
+          integrity="sha384-hWVjflwFxL6sNzntih27bfxkr27PmbbK/iSvJ+a4+0owXq79v+lsFkW54bOGbiDQ" crossorigin="anonymous">
+</head>
+<body>
+<div class="container">
+
+    <script>
+        function delete_participant(e) {
+            e.preventDefault();
+            if (confirm("Are you sure you wish to delete this participant?\n\nAll of their data will be permanently deleted and unrecoverable.\nIf you simply wish to prevent participants from accessing this research you can set their status to inactive.\n\nPress OK to delete this participant.")) {
+                //
+            }
+        }
+
+        function cancel_changes(e) {
+            e.preventDefault();
+            if (confirm("Are you sure you wish to discard your changes?")) {
+                $('#edit_participant_modal').modal("hide");
+            }
+        }
+
+
+        function save_changes(e) {
+            e.preventDefault();
+            $.ajax({
+               url: '/api/projects/{{ participant.project_id }}/participants/{{ participant.id }}',
+               method: 'put',
+               data: {
+                   display_name: $('#display_name').val(),
+                   description: $('#description').val()
+               },
+                success: function () {
+                    alert("Participant updated!");
+                    $('#edit_participant_modal').modal("hide");
+                }
+            });
+        }
+
+        function add_url_domain() {
+            $('#login_url').val(window.location.protocol + "//" + window.location.host + "/p/" + $('#login_url').val() + '/login');
+        }
+
+        function copy_url_to_clipboard(e) {
+            e.preventDefault();
+            var copyText = document.getElementById("login_url");
+            /* Select the text field */
+            copyText.select();
+            /* Copy the text inside the text field */
+            document.execCommand("copy");
+
+        }
+
+        function get_new_pin(e){
+            e.preventDefault();
+            $.get('/projects/{{ participant.project_id }}/participants/{{ participant.id }}/edit/new/pin',
+            function(data, status){
+                if (status=="success"){
+                    console.log(data);
+                    $('#pin').val(JSON.parse(data).pin);
+                    $('#pin_form').append('<span class="text-success small">Participant PIN has been updated. They will no longer be able to login without this new PIN.</span>');
+                }
+            });
+
+        }
+
+        function get_new_url(e){
+            e.preventDefault();
+            $.get('/projects/{{ participant.project_id }}/participants/{{ participant.id }}/edit/new/url',
+            function(data, status){
+                if (status=="success"){
+                    console.log(data);
+                    $('#login_url').val(JSON.parse(data).login_url);
+                    add_url_domain();
+                    $('#url_message').find('span').remove();
+                    $('#url_message').append('<span class="text-success">Login URL has been updated. They will no longer be able to login without this new PIN.</span>');
+                }
+            });
+
+        }
+
+        $(function () {
+            $('#delete_participant').click(delete_participant);
+            $('#cancel_button').click(cancel_changes);
+            $('#save_button').click(save_changes);
+            $('#url_copy_button').click(copy_url_to_clipboard);
+            $('#pin_button').click(get_new_pin);
+            $('#new_url_link').click(get_new_url);
+            add_url_domain();
+        })
+    </script>
+
+
+    <button type="button" class="btn btn-link" data-toggle="modal" data-target="#edit_participant_modal">
+        Edit participant
+    </button>
+
+    <!-- The Modal -->
+    <div class="modal" id="edit_participant_modal" data-backdrop="static" data-keyboard="false">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+
+                <!-- Modal Header -->
+                <div class="modal-header">
+                    <h4 class="modal-title">Edit participant</h4>
+                    <!--<button type="button" class="close" data-dismiss="modal">&times;</button>-->
+                </div>
+
+                <!-- Modal body -->
+                <form>
+                    <div class="modal-body">
+
+                        <div class="row mb-2 text-muted">
+                            <div class="col">
+                                Internal ID: <span id="participant_id">{{ participant.id }}</span>
+                            </div>
+                            <div class="col">
+                                <div class="mx-auto">Within-project number: <span
+                                        id="participant_id">{{ participant.within_project_number }}</span></div>
+                            </div>
+                            <div class="col">
+                                <div class="float-right">Status:
+                                    {% if participant.active %}
+                                        <a id="participant_{{ participant.id }}_active_badge"
+                                           class="badge badge-success ml-2"
+                                           href="javascript:set_participant_active_state({{ participant.id }}, false)">Active</a>
+                                    {% else %}
+                                        <a id="participant_{{ participant.id }}_active_badge"
+                                           class="badge badge-secondary ml-2"
+                                           href="javascript:set_participant_active_state({{ participant.id }}, true)">Inactive</a>
+
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="form-row">
+                            <div class="form-group col">
+                                <label for="display_name">Display name</label>
+                                <input type="text" class="form-control" id="display_name"
+                                       value="{{ participant.display_name }}">
+                            </div>
+                            <div class="form-group col">
+                                <label for="description">Description</label>
+                                <input type="text" class="form-control" id="description"
+                                       value="{{ participant.description }}">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col">
+                                <label for="login_url" class="">Login URL</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="login_url"
+                                           value="{{ participant.login_url }}"
+                                           readonly>
+                                    <div class="input-group-append">
+                                        <button id="url_copy_button" class="btn btn-light"><i class="far fa-copy"></i>
+                                            Copy
+                                        </button>
+                                    </div>
+
+                                </div>
+                                <div class="small mt-2" id="url_message"><a id="new_url_link" href="#" class="">Generate new login URL</a><span>  (the participant will no longer be able to login with their old URL)</span>
+                                </div>
+                            </div>
+
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col" id="pin_form">
+                                <label for="pin">Login PIN</label>
+                                <div class="input-group">
+
+                                    <input type="text" class="form-control col-2" id="pin"
+                                           value="{{ participant.pin }}">
+                                    <div class="input-group-append">
+                                        <button class="btn btn-light" id="pin_button"><i class="fas fa-sync-alt mr-2"></i>New PIN
+                                        </button>
+                                    </div>
+
+                                </div>
+                            </div>
+
+                        </div>
+                    <a href="/projects/{{ participant.project_id }}/participants/{{ participant.id }}/download" class="small mt-2"><i class="fas fa-download"></i>
+
+                        Download participant's data</a>
+
+                    </div>
+
+                    <!-- Modal footer -->
+                    <div class="modal-footer">
+                        <input type="button" value="Delete this participant" id="delete_participant"
+                               class="btn btn-danger mr-auto">
+                        <input type="button" value="Cancel changes" id="cancel_button"
+                               class="btn btn-secondary mr-2">
+                        <input type="submit" value="Save participant" id="save_button"
+                               class="btn btn-primary">
+
+
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>

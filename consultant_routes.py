@@ -3,14 +3,15 @@ from datetime import datetime
 from cxt_app import app, db_models
 import json
 
+
 def get_page_data():
     return {
         'support': app.config['SUPPORT_DETAILS']
     }
 
+
 @app.route('/')
 def index():
-
     consultant = get_active_consultant()
 
     if consultant == None:
@@ -20,12 +21,13 @@ def index():
                            consultant=consultant.to_dict(),
                            active_projects=consultant.get_active_project_details(),
                            page_data=get_page_data()
-                        )
+                           )
 
 
 def remove_active_consultant():
     if 'active_consultant' in session:
         del session['active_consultant']
+
 
 def get_active_consultant():
     if 'active_consultant' in session:
@@ -38,7 +40,6 @@ def get_active_consultant():
 
 @app.route('/projects/<proj_id>/')
 def project_page(proj_id):
-
     c = get_active_consultant()
     if not c:
         return redirect(url_for('consultant_login'))
@@ -50,15 +51,17 @@ def project_page(proj_id):
         p_dict = p.to_dict()
         p_dict['consultants'] = [c.to_dict() for c in p.consultants]
         print(p_dict)
-        return render_template('dashboard/project.html', project=p_dict, consultant=c.to_dict(), active_projects=c.get_active_project_details(), page_data=get_page_data())
+        return render_template('dashboard/project.html', project=p_dict, consultant=c.to_dict(),
+                               active_projects=c.get_active_project_details(), page_data=get_page_data())
 
     except db_models.ProjectNotFound:
         # TODO: 404 project not found page
-        return render_template('dashboard/project.html', project=None, consultant=c.to_dict(), active_projects=c.get_active_project_details(), page_data=get_page_data())
+        return render_template('dashboard/project.html', project=None, consultant=c.to_dict(),
+                               active_projects=c.get_active_project_details(), page_data=get_page_data())
+
 
 @app.route('/projects/<proj_id>/moments/html')
 def project_moments_feed(proj_id):
-
     c = get_active_consultant()
     if not c:
         return redirect(url_for('consultant_login'))
@@ -68,7 +71,6 @@ def project_moments_feed(proj_id):
 
 @app.route('/projects/<proj_id>/download')
 def project_download(proj_id):
-
     c = get_active_consultant()
     if not c:
         return redirect(url_for('consultant_login'))
@@ -82,40 +84,110 @@ def project_download(proj_id):
         return redirect('/projects/{}/'.format(proj_id)), 404
 
 
+## Modal forms
 
+@app.route('/projects/<proj_id>/participants/<participant_id>/edit')
+def project_participant_edit(proj_id, participant_id):
+    c = get_active_consultant()
+    if not c:
+        abort(401)
+
+    if not (c.admin or int(proj_id) in c.project_ids):
+        abort(401)
+
+    try:
+        p = db_models.Participant(participant_id)
+        print(p.to_dict())
+
+        return render_template('dashboard/modals/add_edit_participant_form.html', participant=p.to_dict())
+
+    except db_models.ParticipantNotFoundError:
+        abort(404)
+
+@app.route('/projects/<proj_id>/participants/<participant_id>/edit/new/<i>')
+def project_participant_pin(proj_id, participant_id, i):
+
+    c = get_active_consultant()
+    if not c:
+        abort(401)
+
+    if not (c.admin or int(proj_id) in c.project_ids):
+        abort(401)
+
+    try:
+        p = db_models.Participant(participant_id)
+        if i.lower()=='pin':
+            p.generate_new_pin()
+        elif i.lower() == 'url':
+            p.generate_login_url(c)
+        else:
+            abort(400)
+
+        p.update_in_db()
+
+        return p.to_json()
+
+    except db_models.ParticipantNotFoundError:
+        abort(404)
+
+@app.route('/projects/<proj_id>/participants/<participant_id>/download')
+def projects_participants_download(proj_id, participant_id):
+
+    c = get_active_consultant()
+    if not c:
+        abort(401)
+
+    if not (c.admin or int(proj_id) in c.project_ids):
+        abort(401)
+
+    try:
+        p = db_models.Participant(participant_id)
+
+        download_file = p.generate_download_bundle(ignore_moment_flag=True, participant_zip=True)
+
+        return send_file(download_file, as_attachment=True)
+
+    except db_models.ParticipantNotFoundError:
+        abort(404)
 
 ## Login and logout
 
 @app.route('/login/', methods=['GET', 'POST'])
 def consultant_login():
-    if request.method=="GET":
+    if request.method == "GET":
         return render_template('dashboard/login.html', page_data=get_page_data())
-    elif request.method=="POST":
+    elif request.method == "POST":
         try:
             c = db_models.Consultant.login(request.form['email'], request.form['password'])
             session['active_consultant'] = c.id
             return redirect(url_for('index'))
         except db_models.ConsultantLoginError:
-            return render_template('dashboard/login.html', error="Sorry, but the email address and password that you entered do not appear to match. Please try agian.", page_data=get_page_data())
+            return render_template('dashboard/login.html',
+                                   error="Sorry, but the email address and password that you entered do not appear to match. Please try agian.",
+                                   page_data=get_page_data())
         except db_models.ConsultantNotFoundError:
-            return render_template('dashboard/login.html', error="Sorry, but we did not recognise the email address that you entered. Please try agian.", page_data=get_page_data())
+            return render_template('dashboard/login.html',
+                                   error="Sorry, but we did not recognise the email address that you entered. Please try agian.",
+                                   page_data=get_page_data())
+
 
 @app.route('/logout/')
 def consultant_logout():
-
     remove_active_consultant()
     return redirect(url_for('index'))
 
 
 """ TEST ROUTES """
 
+
 @app.route('/test/new_consultant')
 def test_new_consultant():
-    return db_models.Consultant.add_new_to_db("joe@bloggs.net", "password", "JoeB", "Joe", "Bloggs", True, False).to_json()
+    return db_models.Consultant.add_new_to_db("joe@bloggs.net", "password", "JoeB", "Joe", "Bloggs", True,
+                                              False).to_json()
+
 
 @app.route('/test/delete_consultant/<id>')
 def test_delete_consultant(id):
-
     if not 'active_consultant' in session:
         abort(401)
 
@@ -140,6 +212,7 @@ def test_login_consultant(email, password):
         if 'active_consultant' in session:
             del session['active_consultant']
         return 'Login failure'
+
 
 @app.route('/test/update_consultant/<id>')
 def test_update_consultant(id):

@@ -68,24 +68,46 @@ function update_project_status_activity(iso_date) {
 
 function set_project_activation(proj_id, active) {
 
-    console.log('attempt to set project activation to: ' + active);
+    if (active == "false") {
+        if (confirm("Are you sure you wish to archive this project? All participants will be set to inactive and will have to be re-activated in future if you choose to re-activate this project.")) {
+            $.ajax({
+                url: '/api/projects/' + proj_id + '/activate',
+                data: {'active': active},
+                type: 'POST',
+                success: function (response) {
 
-    $.ajax({
-        url: '/api/projects/' + proj_id + '/activate',
-        data: {'active': active},
-        type: 'POST',
-        success: function (response) {
+                    // reset change password form and hide modal
+                    console.log(response.responseText);
+                    location.reload();
 
-            // reset change password form and hide modal
-            console.log(response.responseText);
-            location.reload();
+                },
+                error: function (error) {
 
-        },
-        error: function (error) {
-
-            console.log(error.responseText);
+                    console.log(error.responseText);
+                }
+            });
         }
-    });
+    }
+    else {
+        $.ajax({
+            url: '/api/projects/' + proj_id + '/activate',
+            data: {'active': active},
+            type: 'POST',
+            success: function (response) {
+
+                // reset change password form and hide modal
+                console.log(response.responseText);
+                location.reload();
+
+            },
+            error: function (error) {
+
+                console.log(error.responseText);
+            }
+        });
+
+    }
+
 
 }
 
@@ -142,14 +164,12 @@ function render_participant_details(p) {
 
 function set_participant_active_state(p_id, state) {
 
-    console.log('called set participant active: ' + p_id + ", " + state);
-
     $.ajax({
         url: '/api/participants/' + p_id,
         method: 'put',
         data: {active: state},
         success: function (result, status, xhr) {
-            console.log(result);
+
             if (JSON.parse(result).active) {
                 $('#participant_' + p_id + '_active_badge').replaceWith('<a id="participant_' + p_id + '_active_badge" class="badge badge-success ml-2 align-top" href="javascript:set_participant_active_state(' + p_id + ', \'false\');">Active</a>');
             }
@@ -158,4 +178,19 @@ function set_participant_active_state(p_id, state) {
             }
         }
     });
+}
+
+function scroll_to_item(moment_id = null, comment_id = null) {
+
+    if (comment_id) {
+
+        // expand comments area within moment
+        $('#moments_frame').contents().find('#moment_' + moment_id + '_comments').addClass('show');
+        $('#moments_frame').contents().find('#moment_' + moment_id + '_comment_' + comment_id)[0].scrollIntoView({behavior: 'smooth'});
+
+    }
+    else {
+        $('#moments_frame').contents().find('#moment_' + moment_id)[0].scrollIntoView({behavior: 'smooth'});
+    }
+
 }

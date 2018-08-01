@@ -667,7 +667,7 @@ class Participant:
 
     def generate_login_url(self, admin_consultant):
 
-        if not admin_consultant.admin:
+        if not admin_consultant.admin and not Project(self.project_id).consultant_is_assigned(admin_consultant):
             raise ConsultantNotAdminError
 
         self.__login_URL = Participant.get_random_login_url()
@@ -2261,13 +2261,9 @@ class Moment:
             for r in rows:
                 moment_list.append(Moment(r['moment_id']))
 
-            moments_with_metadata = {
-                'lowest_moment_id': moment_list[0].id if moment_list[0].id < moment_list[-1].id else moment_list[-1].id,
-                'highest_moment_id': moment_list[-1].id if moment_list[-1].id > moment_list[0].id else moment_list[0].id,
-                'since_moment_id_given': since_moment_id,
-                'project_id': project_id,
-                'moments': moment_list
-            }
+            if len(moment_list)>0:
+                moments_with_metadata['lowest_moment_id'] = moment_list[0].id if moment_list[0].id < moment_list[-1].id else moment_list[-1].id
+                moments_with_metadata['highest_moment_id'] = moment_list[-1].id if moment_list[-1].id > moment_list[0].id else moment_list[0].id
 
         return moments_with_metadata
 

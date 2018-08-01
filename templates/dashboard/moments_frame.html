@@ -12,7 +12,49 @@
           integrity="sha384-hWVjflwFxL6sNzntih27bfxkr27PmbbK/iSvJ+a4+0owXq79v+lsFkW54bOGbiDQ" crossorigin="anonymous">
 
     <script>
-        function generate_project_moments(project_id, since_moment_id, order) {
+
+
+        function add_notification(moment = null, comment = null) {
+
+            if (comment) {
+
+                // Add item to notifications drop-down and set to light up
+                $('#moment_noficiation', window.parent.document).prepend('<a id="comment_' + comment.id + '_notification_link" class="dropdown-item" href="javascript:scroll_to_item(' + comment.parent_moment + ',' + comment.id + ');">' + comment.display_name + ' commented on a moment</a>');
+                // Remove item from notifications menu when clicked
+                $('#comment_' + comment.id + '_notification_link', window.parent.document).click(function () {
+                    $(this).remove();
+                    $('#moment_notification_counter', window.parent.document).text(parseInt($('#moment_notification_counter', window.parent.document).text()) - 1);
+                    if (parseInt($('#moment_notification_counter', window.parent.document).text()) == 0) {
+                        $('#moment_notification_dropdown', window.parent.document).addClass('d-none');
+                    }
+                });
+            }
+            else {
+                // do the same as for comments but for a moment
+                $('#moment_noficiation', window.parent.document).prepend('<a id="moment_' + moment.id + '_notification_link" class="dropdown-item" href="javascript:scroll_to_item(' + moment.id + ',null);">' + moment.participant_display_name + ' added a moment</a>');
+                // Remove item from notifications menu when clicked
+                $('#moment_' + moment.id + '_notification_link', window.parent.document).click(function () {
+                    $(this).remove();
+                    $('#moment_notification_counter', window.parent.document).text(parseInt($('#moment_notification_counter', window.parent.document).text()) - 1);
+                    if (parseInt($('#moment_notification_counter', window.parent.document).text()) == 0) {
+                        $('#moment_notification_dropdown', window.parent.document).addClass('d-none');
+                    }
+                });
+
+            }
+            // Increase the counter in the notification button
+            $('#moment_notification_counter', window.parent.document).text(parseInt($('#moment_notification_counter', window.parent.document).text()) + 1);
+            $('#moment_notification_dropdown', window.parent.document).removeClass('d-none');
+        }
+
+        function generate_project_moments(project_id, since_moment_id, order, show_notification = false) {
+
+            if (!since_moment_id) {
+                since_moment_id = sessionStorage.highest_moment_id;
+            }
+
+            //console.log('running generate_project_moments. since_moment_id value is ' + since_moment_id);
+
             $.get('/api/projects/' + project_id + '/moments', {since_moment_id: since_moment_id, order: order},
                 function (data, status, xhr) {
                     var moments = data;
@@ -20,21 +62,24 @@
                         var m = moments[i];
                         $('#moments').prepend(render_moment_html(m));
                         sessionStorage.highest_moment_id = m.id;
-                        // Increase the count of moments in the parent window
-                        $('#moment_counter_badge', window.parent.document).text(parseInt($('#moment_counter_badge', window.parent.document).text()) + 1);
-                    }
-                    // Find all elements that end with 'new_comment'
-                    $('div[id$=_comments_form]').find('textarea').keydown(function (e) {
+                        $('#moment_' + m.id + '_new_comment').keydown(function (e) {
                             if ((e.metaKey || e.ctrlKey) && e.which == 13) {
                                 $(this).siblings('button').trigger('click');
                             }
                         });
-                    generate_project_comments({{ project_id }}, sessionStorage.highest_comment_id, 'asc');
-                }, 'json');
+                        // Increase the count of moments in the parent window
+                        $('#moment_counter_badge', window.parent.document).text(parseInt($('#moment_counter_badge', window.parent.document).text()) + 1);
+                        if (show_notification) {
+                            add_notification(m, null);
+                        }
+                    }
 
+                    // This should run whether there are any new moments to display or not..
+                    generate_project_comments({{ project_id }}, sessionStorage.highest_comment_id, 'asc', show_notification);
+                }, 'json');
         }
 
-        function generate_project_comments(project_id, since_comment_id, order) {
+        function generate_project_comments(project_id, since_comment_id, order, show_notification = false) {
             $.get('/api/projects/' + project_id + '/moments/comments/', {
                     since_comment_id: since_comment_id,
                     order: order
@@ -48,6 +93,19 @@
                         // Increase counter value for parent moment
                         $('#moment_' + c.parent_moment + '_comments_count_label').text(parseInt($('#moment_' + c.parent_moment + '_comments_count_label').text()) + 1);
                         sessionStorage.highest_comment_id = c.id;
+                        // If we need to show a notification...
+                        if (show_notification) {
+                            // Make comment button light up
+                            $('#moment_' + c.parent_moment + '_show_comments_button').removeClass('btn-secondary');
+                            $('#moment_' + c.parent_moment + '_show_comments_button').addClass('btn-info');
+                            $('#moment_' + c.parent_moment + '_show_comments_button').click(function () {
+                                // Reset appearance of button once clicked
+                                $(this).removeClass('btn-info');
+                                $(this).addClass('btn-secondary');
+                            })
+
+                            add_notification(null, c);
+                        }
                     }
                 }, 'json');
 
@@ -95,7 +153,7 @@
 
             ////// MOMENT CARD BODY
             moment_html += '<div class="card-body">' +
-                '<p class="card-text">' + m.text + '</p>';
+                '<span class="card-text">' + m.text + '</span>';
 
             //TODO: Replace with dynamically loaded moment media for each one found in m.media
             for (var media_num = 0; media_num < m.media.length; media_num++) {
@@ -103,22 +161,22 @@
                 // if image...
 
                 if (m.media[media_num].media_type == 'image') {
-                    moment_html += '<a href="/api/participants/' + m.parent_participant_id + '/moments/' + m.id + '/media/' + m.media[media_num].id + '/original" aria-label="original thumbnail" target="_blank"><img class="card-img-bottom mb-2 img-thumbnail" src="/api/participants/' + m.parent_participant_id + '/moments/' + m.id + '/media/' + m.media[media_num].id + '/large" alt="Moment image" style="width:100%"></a>';
+                    moment_html += '<a href="/api/participants/' + m.parent_participant_id + '/moments/' + m.id + '/media/' + m.media[media_num].id + '/original" aria-label="original thumbnail" target="_blank"><img class="card-img-bottom my-2 img-thumbnail" src="/api/participants/' + m.parent_participant_id + '/moments/' + m.id + '/media/' + m.media[media_num].id + '/large" alt="Moment image" style="width:100%"></a>';
 
                 }
                 //if video...
                 else if (m.media[media_num].media_type == 'video') {
-                    moment_html += '<video width="100%" controls <!--preload="none"-->><source src="/api/participants/' + m.parent_participant_id + '/moments/' + m.id + '/media/' + m.media[media_num].id + '/video/video.mp4" type="video/mp4"></video>';
+                    moment_html += '<video class="my-2" width="100%" controls <!--preload="none"-->><source src="/api/participants/' + m.parent_participant_id + '/moments/' + m.id + '/media/' + m.media[media_num].id + '/video/video.mp4" type="video/mp4"></video>';
                 }
 
 
             }
-            moment_html += '<div id="moment_' + m.id + '_metadata_area"><div id="moment_' + m.id + '_location" class="d-inline-block">';
+            moment_html += '<div id="moment_' + m.id + '_metadata_area">';
+
             if (m.gps.lat != null) {
-                moment_html += '<a href="https://www.google.com/maps/search/?api=1&query=' + m.gps.lat + ',' + m.gps.long + '" class="text-muted" target="_blank">&#x1F4CD; Location captured</a>';
+                moment_html += '<div id="moment_' + m.id + '_location" class="d-inline-block"><a href="https://www.google.com/maps/search/?api=1&query=' + m.gps.lat + ',' + m.gps.long + '" class="text-muted" target="_blank">&#x1F4CD; Location captured</a></div>';
             }
 
-            moment_html += '</div>'; // Close location info div
             if (m.media.length > 0) {
 
                 moment_html += '<div id="moment_' + m.id + '_download_tick" class="float-right">';
@@ -234,8 +292,9 @@
         $(function () {
                 sessionStorage.highest_moment_id = 0;
                 sessionStorage.highest_comment_id = 0;
-                generate_project_moments({{ project_id }}, sessionStorage.highest_moment_id, 'asc');
-
+                generate_project_moments({{ project_id }}, null, 'asc');
+                // set up 10s callback to get new moments and comments and show notifications (true at end)
+                window.setInterval(generate_project_moments, 10 * 1000, {{ project_id }}, null, 'asc', true)
             }
         );
 

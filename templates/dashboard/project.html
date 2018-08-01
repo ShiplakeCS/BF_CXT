@@ -114,14 +114,20 @@
         <div class="col">
             <div class="card" style="height:100%">
                 <div class="card-header">
-                    <span class="">Participant moments<span id="moment_counter_badge" class="badge badge-pill badge-secondary ml-2 align-middle">0</span></span>
-                    <div id="moment_noficiation" class="float-right">
-
-                        <button class="btn btn-info btn-sm"><i class="far fa-bell mr-2"></i>2</button>
+                    <span class="">Participant moments<span id="moment_counter_badge"
+                                                            class="badge badge-pill badge-secondary ml-2 align-middle">0</span></span>
+                    <div class="float-right d-none" id="moment_notification_dropdown">
+                        <div class="dropdown">
+                            <button type="button" class="btn btn-info btn-sm dropdown-toggle" data-toggle="dropdown">
+                                <i class="far fa-bell mr-2"></i><span id="moment_notification_counter">0</span>
+                            </button>
+                            <div class="dropdown-menu" id="moment_noficiation">
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="card-body h-100">
-                    <iframe src="/projects/{{ project.id }}/moments/html"
+                    <iframe id="moments_frame" src="/projects/{{ project.id }}/moments/html"
                             style="width:100%;height:100%;margin-top:0px;margin-bottom:2px" class="border-0"></iframe>
                 </div>
             </div>
