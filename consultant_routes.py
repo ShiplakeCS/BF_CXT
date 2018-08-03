@@ -86,6 +86,25 @@ def project_download(proj_id):
 
 ## Modal forms
 
+@app.route('/projects/<proj_id>/participants/<participant_id>/')
+def project_participant_view(proj_id, participant_id):
+
+    c = get_active_consultant()
+    if not c:
+        abort(401)
+
+    # if not (c.admin or int(proj_id) in c.project_ids):
+    #     abort(401)
+
+    try:
+        p = db_models.Participant(participant_id)
+        print(p.to_dict())
+
+        return render_template('dashboard/modals/add_edit_participant_form.html', participant=p.to_dict(), read_only=True)
+
+    except db_models.ParticipantNotFoundError:
+        abort(404)
+
 @app.route('/projects/<proj_id>/participants/<participant_id>/edit')
 def project_participant_edit(proj_id, participant_id):
     c = get_active_consultant()
@@ -103,6 +122,8 @@ def project_participant_edit(proj_id, participant_id):
 
     except db_models.ParticipantNotFoundError:
         abort(404)
+
+
 
 @app.route('/projects/<proj_id>/participants/<participant_id>/edit/new/<i>')
 def project_participant_pin(proj_id, participant_id, i):

@@ -156,7 +156,7 @@ function render_participant_details(p) {
     html += '<div class="row small">';
     html += '<div class="col-3">Internal ID: ' + p.id + '</div>';
     html += '<div class="col">Last activity: ' + activity.toLocaleDateString() + ' ' + String(activity.getHours()).padStart(2, "0") + ':' + String(activity.getMinutes()).padStart(2, "0") + '</div>';
-    html += '<div class="col-2"><a href="" class="text-body">Edit</a></div>';
+    html += '<div class="col-2"><a href="/projects/'+p.project_id+'/participants/'+ p.id+'" class="text-body">View/Edit</a></div>';
     html += '</div></div>';
 
     return html;

@@ -32,18 +32,20 @@
 
         function save_changes(e) {
             e.preventDefault();
-            $.ajax({
-               url: '/api/projects/{{ participant.project_id }}/participants/{{ participant.id }}',
-               method: 'put',
-               data: {
-                   display_name: $('#display_name').val(),
-                   description: $('#description').val()
-               },
-                success: function () {
-                    alert("Participant updated!");
-                    $('#edit_participant_modal').modal("hide");
-                }
-            });
+            {% if participant %}
+                $.ajax({
+                    url: '/api/projects/{{ participant.project_id }}/participants/{{ participant.id }}',
+                    method: 'put',
+                    data: {
+                        display_name: $('#display_name').val(),
+                        description: $('#description').val()
+                    },
+                    success: function () {
+                        alert("Participant updated!");
+                        $('#edit_participant_modal').modal("hide");
+                    }
+                });
+            {% endif %}
         }
 
         function add_url_domain() {
@@ -60,31 +62,38 @@
 
         }
 
-        function get_new_pin(e){
+        function get_new_pin(e) {
             e.preventDefault();
-            $.get('/projects/{{ participant.project_id }}/participants/{{ participant.id }}/edit/new/pin',
-            function(data, status){
-                if (status=="success"){
-                    console.log(data);
-                    $('#pin').val(JSON.parse(data).pin);
-                    $('#pin_form').append('<span class="text-success small">Participant PIN has been updated. They will no longer be able to login without this new PIN.</span>');
-                }
-            });
-
+            {% if participant %}
+                $.get('/projects/{{ participant.project_id }}/participants/{{ participant.id }}/edit/new/pin',
+                    function (data, status) {
+                        if (status == "success") {
+                            console.log(data);
+                            $('#pin').val(JSON.parse(data).pin);
+                            $('#pin_form').append('<span class="text-success small">Participant PIN has been updated. They will no longer be able to login without this new PIN.</span>');
+                        }
+                    });
+            {% endif %}
         }
 
-        function get_new_url(e){
+        function set_participant_active_state(state) {
+            //
+        }
+
+        function get_new_url(e) {
             e.preventDefault();
-            $.get('/projects/{{ participant.project_id }}/participants/{{ participant.id }}/edit/new/url',
-            function(data, status){
-                if (status=="success"){
-                    console.log(data);
-                    $('#login_url').val(JSON.parse(data).login_url);
-                    add_url_domain();
-                    $('#url_message').find('span').remove();
-                    $('#url_message').append('<span class="text-success">Login URL has been updated. They will no longer be able to login without this new PIN.</span>');
-                }
-            });
+            {% if participant %}
+                $.get('/projects/{{ participant.project_id }}/participants/{{ participant.id }}/edit/new/url',
+                    function (data, status) {
+                        if (status == "success") {
+                            console.log(data);
+                            $('#login_url').val(JSON.parse(data).login_url);
+                            add_url_domain();
+                            $('#url_message').find('span').remove();
+                            $('#url_message').append('<span class="text-success">Login URL has been updated. They will no longer be able to login without this new PIN.</span>');
+                        }
+                    });
+            {% endif %}
 
         }
 
@@ -96,13 +105,15 @@
             $('#pin_button').click(get_new_pin);
             $('#new_url_link').click(get_new_url);
             add_url_domain();
+            $('.modal').modal('show');
         })
     </script>
 
-
+<!--
     <button type="button" class="btn btn-link" data-toggle="modal" data-target="#edit_participant_modal">
         Edit participant
     </button>
+-->
 
     <!-- The Modal -->
     <div class="modal" id="edit_participant_modal" data-backdrop="static" data-keyboard="false">
@@ -111,7 +122,7 @@
 
                 <!-- Modal Header -->
                 <div class="modal-header">
-                    <h4 class="modal-title">Edit participant</h4>
+                    <h4 class="modal-title">{% if read_only %}View {% elif participant %}Edit {% else %}Add {% endif %} participant</h4>
                     <!--<button type="button" class="close" data-dismiss="modal">&times;</button>-->
                 </div>
 
@@ -121,89 +132,118 @@
 
                         <div class="row mb-2 text-muted">
                             <div class="col">
-                                Internal ID: <span id="participant_id">{{ participant.id }}</span>
+                                Internal ID: <span
+                                    {% if participant %}id="participant_id">{{ participant.id }}{% else %}
+                                        >New{% endif %}</span>
                             </div>
                             <div class="col">
                                 <div class="mx-auto">Within-project number: <span
-                                        id="participant_id">{{ participant.within_project_number }}</span></div>
+                                        {% if participant %}id="participant_id"{% endif %}>{% if participant %}
+                                    {{ participant.within_project_number }}
+                                {% else %}Assigned on save
+                                {% endif %}</span></div>
                             </div>
-                            <div class="col">
-                                <div class="float-right">Status:
-                                    {% if participant.active %}
-                                        <a id="participant_{{ participant.id }}_active_badge"
-                                           class="badge badge-success ml-2"
-                                           href="javascript:set_participant_active_state({{ participant.id }}, false)">Active</a>
-                                    {% else %}
-                                        <a id="participant_{{ participant.id }}_active_badge"
-                                           class="badge badge-secondary ml-2"
-                                           href="javascript:set_participant_active_state({{ participant.id }}, true)">Inactive</a>
 
-                                    {% endif %}
+                            {% if participant %}
+                                <div class="col">
+                                    <div class="float-right">Status:
+
+                                        {% if participant.active %}
+                                            <a id="participant_active_badge"
+                                               class="badge badge-success text-white ml-2" {% if not read_only %}
+                                               href="javascript:set_participant_active_state(false)"
+                                                {% endif %}>Active</a>
+                                        {% else %}
+                                            <a id="participant_active_badge"
+                                               class="badge badge-secondary text-white ml-2" {% if not read_only %}
+                                               href="javascript:set_participant_active_state(true)"{% endif %}>Inactive</a>
+                                        {% endif %}
+                                    </div>
                                 </div>
-                            </div>
+                            {% endif %}
                         </div>
                         <hr>
                         <div class="form-row">
                             <div class="form-group col">
                                 <label for="display_name">Display name</label>
                                 <input type="text" class="form-control" id="display_name"
-                                       value="{{ participant.display_name }}">
+                                       value="{% if participant %}{{ participant.display_name }}{% endif %}"
+                                       {% if read_only %}readonly{% endif %}>
                             </div>
                             <div class="form-group col">
                                 <label for="description">Description</label>
                                 <input type="text" class="form-control" id="description"
-                                       value="{{ participant.description }}">
+                                       value="{% if participant %}{{ participant.description }}{% endif %}"
+                                       {% if read_only %}readonly{% endif %}>
                             </div>
                         </div>
-                        <div class="form-row">
-                            <div class="form-group col">
-                                <label for="login_url" class="">Login URL</label>
-                                <div class="input-group">
-                                    <input type="text" class="form-control" id="login_url"
-                                           value="{{ participant.login_url }}"
-                                           readonly>
-                                    <div class="input-group-append">
-                                        <button id="url_copy_button" class="btn btn-light"><i class="far fa-copy"></i>
-                                            Copy
-                                        </button>
+                        {% if participant %}
+                            <div class="form-row">
+                                <div class="form-group col">
+                                    <label for="login_url" class="">Login URL</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control"
+                                               id="login_url"
+                                               value="{{ participant.login_url }}" readonly>
+
+                                        <div class="input-group-append">
+                                            <button id="url_copy_button" class="btn btn-light"><i
+                                                    class="far fa-copy"></i>
+                                                Copy
+                                            </button>
+                                        </div>
+
+
                                     </div>
+                                    {% if not read_only %}
+                                        <div class="small mt-2" id="url_message"><a id="new_url_link" href="#" class="">Generate
+                                            new login URL</a><span>  (the participant will no longer be able to login with their old URL)</span>
+                                        </div>
+                                    {% endif %}
+                                </div>
 
-                                </div>
-                                <div class="small mt-2" id="url_message"><a id="new_url_link" href="#" class="">Generate new login URL</a><span>  (the participant will no longer be able to login with their old URL)</span>
-                                </div>
                             </div>
 
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group col" id="pin_form">
-                                <label for="pin">Login PIN</label>
-                                <div class="input-group">
+                            <div class="form-row">
+                                <div class="form-group col" id="pin_form">
+                                    <label for="pin">Login PIN</label>
+                                    <div class="input-group">
 
-                                    <input type="text" class="form-control col-2" id="pin"
-                                           value="{{ participant.pin }}">
-                                    <div class="input-group-append">
-                                        <button class="btn btn-light" id="pin_button"><i class="fas fa-sync-alt mr-2"></i>New PIN
-                                        </button>
+                                        <input type="text" class="form-control col-2" id="pin"
+                                               value="{{ participant.pin }}" {% if read_only %}readonly{% endif %}>
+                                        {% if not read_only %}
+                                            <div class="input-group-append">
+                                                <button class="btn btn-light" id="pin_button"><i
+                                                        class="fas fa-sync-alt mr-2"></i>New PIN
+                                                </button>
+                                            </div>
+                                        {% endif %}
                                     </div>
-
                                 </div>
+
                             </div>
-
-                        </div>
-                    <a href="/projects/{{ participant.project_id }}/participants/{{ participant.id }}/download" class="small mt-2"><i class="fas fa-download"></i>
-
-                        Download participant's data</a>
-
-                    </div>
-
+                            <a href="/projects/{{ participant.project_id }}/participants/{{ participant.id }}/download"
+                               class="small mt-2"><i class="fas fa-download"></i>Download participant's data</a>
+                            </div>
+                        {% endif %}
                     <!-- Modal footer -->
                     <div class="modal-footer">
+                        {% if not read_only %}
                         <input type="button" value="Delete this participant" id="delete_participant"
                                class="btn btn-danger mr-auto">
                         <input type="button" value="Cancel changes" id="cancel_button"
                                class="btn btn-secondary mr-2">
                         <input type="submit" value="Save participant" id="save_button"
                                class="btn btn-primary">
+                        {% else %}
+                            {% if participant %}
+                                <a href="/projects/{{ participant.project_id }}/participants/{{ participant.id }}/edit"
+                                   id="edit_button" class="btn btn-secondary">Edit</a>
+                            {% endif %}
+                        <input type="button" value="Done" id="done_button" onclick="$('#edit_participant_modal').modal('hide')"
+                               class="btn btn-primary">
+
+                        {% endif %}
 
 
                     </div>

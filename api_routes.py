@@ -129,10 +129,19 @@ def get_participant_moments_since_id(p_id, m_id):
 @app.route('/api/participants/<p_id>/moments/')
 def get_participants_moments(p_id):
 
-    min_id = request.args.get('min')
-    max_id = request.args.get('max')
-    order = request.args.get('order')
-    limit = request.args.get('limit')
+    min_id = None
+    max_id = None
+    limit = None
+    order = None
+
+    if request.args.get('min'):
+        min_id = request.args.get('min')
+    if request.args.get('max'):
+        max_id = request.args.get('max')
+    if request.args.get('order'):
+        order = request.args.get('order')
+    if request.args.get('limit'):
+        limit = request.args.get('limit')
 
     if auth_consultant() or auth_participant(p_id):
         return db_models.Moment.get_moments_for_participant_json(int(p_id), min_id, max_id, limit, order)

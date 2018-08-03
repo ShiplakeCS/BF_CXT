@@ -2139,13 +2139,13 @@ class Moment:
 
         # Sanitize arguments:
 
-        if min_id == 'null':
+        if min_id == 'null' or min_id == 'NaN':
             min_id = None
-        if max_id == 'null':
+        if max_id == 'null' or max_id == 'NaN':
             max_id = None
-        if limit == 'null':
+        if limit == 'null' or limit == 'NaN':
             limit = None
-        if order == 'null':
+        if order == 'null' or order == 'NaN':
             order = 'desc'
 
         if min_id:
