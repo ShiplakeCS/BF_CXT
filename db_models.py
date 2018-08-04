@@ -275,20 +275,24 @@ class Consultant:
 
         return Consultant(new_id)
 
-    def change_password(self, old, new):
-
-        # confirm old password is correct
+    def change_password(self, old, new, admin_consultant=None):
 
         db = DB.get_db()
-        row = db.execute("SELECT password_hash FROM Consultant WHERE id=?", [self.id]).fetchone()
 
-        if check_password_hash(row['password_hash'], old):
-          # old password is good, set new one
-            new_pw_hash = generate_password_hash(new)
-            db.execute("UPDATE Consultant SET password_hash=? WHERE id=?", [new_pw_hash, self.id])
-            db.commit()
-        else:
-            raise ConsultantUpdateError("Cannot change password, old password did not match database.")
+        if not admin_consultant:
+            # confirm old password is correct
+            row = db.execute("SELECT password_hash FROM Consultant WHERE id=?", [self.id]).fetchone()
+
+            if not check_password_hash(row['password_hash'], old):
+                raise ConsultantUpdateError("Cannot change password, old password did not match database.")
+
+        if not admin_consultant.admin:
+            raise ConsultantNotAdminError
+
+        # Admin consultant or old password is good, set new one
+        new_pw_hash = generate_password_hash(new)
+        db.execute("UPDATE Consultant SET password_hash=? WHERE id=?", [new_pw_hash, self.id])
+        db.commit()
 
     def get_active_project_details(self):
 
@@ -304,12 +308,15 @@ class Consultant:
     @staticmethod
     def login(email, password):
         db = DB.get_db()
-        row = db.execute("SELECT id, password_hash FROM Consultant WHERE email=?", [email]).fetchone()
+        row = db.execute("SELECT id, password_hash, active FROM Consultant WHERE email=?", [email]).fetchone()
         if not row:
             raise ConsultantNotFoundError("No consultant found with email address: {}".format(email))
 
         if not check_password_hash(row['password_hash'], password):
             raise ConsultantLoginError("Email and password do not match")
+
+        if row['active'] == 0:
+            raise ConsultantLoginError("Consultant is not active.")
 
         return Consultant(row['id'])
 

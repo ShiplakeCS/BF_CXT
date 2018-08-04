@@ -47,7 +47,7 @@
                         <div class="row">
                             {% for c in project.consultants %}
                                 <div class="col">
-                                    <a href="/projects/consultants/{{ c.id }}"
+                                    <a href="javascript:show_consultant_modal({{ c.id }}, 'view')"
                                        class="text-body">{{ c.first_name }} {{ c.last_name }} ({{ c.display_name }})</a>
                                 </div>
                                 {% if loop.index % 3 == 0 %}</div>

@@ -55,14 +55,77 @@ def get_consultant(id):
         return json.dumps({"error_code": "301", "error_text": "No consultant found with ID {}".format(id)}), 404
 
 
-@app.route('/api/consultants/', methods=['GET'])
-def get_consultants():
+@app.route('/api/consultants/', methods=['GET', 'POST'])
+def api_consultants():
+
     if not auth_consultant():
         abort(401)
 
-    # TODO: Add get all consultants static method to consultant object
-    return db_models.Consultant.get_all_consultants_json()
+    if request.method == "GET":
+        return db_models.Consultant.get_all_consultants_json()
 
+    elif request.method == "POST":
+        try:
+            consultant = db_models.Consultant.add_new_to_db(request.values['email'], request.values['reset_password'], request.values['display_name'], request.values['first_name'], request.values['last_name'], bool(request.values['active']), bool(request.values['admin']))
+            return consultant.to_json()
+
+        except Exception as e:
+            return str(e), 400
+
+
+@app.route('/api/consultants/<consultant_id>', methods=['GET', 'PUT', 'DELETE'])
+def api_consulant_actions(consultant_id):
+
+    if not auth_consultant():
+        abort(401)
+
+    try:
+        consultant = db_models.Consultant(consultant_id)
+
+        if request.method == "GET":
+            return consultant.to_json()
+
+        elif request.method == "PUT":
+
+            c = get_active_consultant()
+            if not c.admin:
+                abort(401)
+
+            consultant.email = request.values['email']
+            consultant.display_name = request.values['display_name']
+            consultant.first_name = request.values['first_name']
+            consultant.last_name = request.values['last_name']
+            print(request.values['active'])
+            consultant.active = request.values['active'] == 'true'
+            consultant.set_admin(request.values['admin'] == 'true', c)
+
+            print(request.values['reset_password'])
+
+            if request.values['reset_password'] != "":
+                consultant.change_password("", request.values['reset_password'], c)
+
+            consultant.update_in_db()
+
+            return consultant.to_json()
+
+        elif request.method == "DELETE":
+
+            c = get_active_consultant()
+            if not c.admin:
+                abort(401)
+
+            consultant.delete_from_db(c)
+
+            return consultant.to_json()
+
+    except db_models.ConsultantNotFoundError:
+        abort(404)
+
+    except db_models.ConsultantUpdateError as e:
+        return str(e), 400
+
+    except Exception as e:
+        return str(e), 400
 
 @app.route('/api/consultants/<c_id>/change_password', methods=['POST'])
 def change_consultant_password(c_id):

@@ -1,0 +1,269 @@
+<!--
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Add/edit participant form</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css"
+          integrity="sha384-hWVjflwFxL6sNzntih27bfxkr27PmbbK/iSvJ+a4+0owXq79v+lsFkW54bOGbiDQ" crossorigin="anonymous">
+</head>
+<body>
+-->
+<div class="container">
+
+    <script>
+
+        function cancel_changes(e) {
+            e.preventDefault();
+            if (confirm("Are you sure you wish to discard your changes?")) {
+                // reset client form
+                $('#consultant_modal').modal("hide");
+            }
+        }
+
+        {% if consultant and active_consultant.admin %}
+            function delete_consultant(e) {
+                e.preventDefault();
+                if (confirm("Are you sure you wish to delete this consultant?\n\nAll data related to this consultant will be permanently deleted and unrecoverable.\n\nAlternatively, you can set the consultant as Inactive meaning that they are unable to login but all of their project data will remain available to other users.\n\nIf you are still sure that you wish to delete this client, please press OK, otherwise Cancel to go back.")) {
+                    $.ajax({
+                        url: '/api/consultants/' + {{ consultant.id }},
+                        method: 'delete',
+                        success: function (response, status, xhr) {
+                            alert('Consultant deleted');
+                            $('#consultant_modal').modal('hide');
+                            window.location.reload();
+                        },
+                        error: function (xhr, status, error) {
+                            // show error message in modal
+                            var err_msg = xhr.responseText;
+                            $('#consultant_modal').find('.modal-body').append('<div class="alert alert-warning alert-dismissible mt-4"><button type="button" class="close" data-dismiss="alert">&times;</button>' + err_msg + '</div>');
+                        }
+                    });
+                }
+
+            }
+        {% endif %}
+
+        {% if active_consultant.admin %}
+
+            function save_changes(e) {
+                e.preventDefault();
+                //{% if consultant %}
+                    $.ajax({
+                        url: '/api/consultants/{{ consultant.id }}',
+                        method: 'put',
+                        data: {
+                            email: $('#email').val(),
+                            reset_password: $('#reset_password').val(),
+                            display_name: $('#display_name').val(),
+                            first_name: $('#first_name').val(),
+                            last_name: $('#last_name').val(),
+                            active: $('#active_checkbox').prop('checked'),
+                            admin: $('#admin_checkbox').prop('checked')
+                        },
+                        success: function () {
+                            alert("Consultant details updated!");
+                            $('#consultant_modal').modal("hide");
+                            window.location.reload();
+                        },
+                        error: function (xhr, status, error) {
+                            // show error message in modal
+                            var err_msg = xhr.responseText;
+                            $('#consultant_modal').find('.modal-body').append('<div class="alert alert-warning alert-dismissible mt-4"><button type="button" class="close" data-dismiss="alert">&times;</button>' + err_msg + '</div>');
+                        }
+
+                    });
+                    //    {% else %}
+                    // Add new client
+                    $.ajax({
+                        url: '/api/consultants/',
+                        method: 'post',
+                        data: {
+                            email: $('#email').val(),
+                            reset_password: $('#reset_password').val(),
+                            display_name: $('#display_name').val(),
+                            first_name: $('#first_name').val(),
+                            last_name: $('#last_name').val(),
+                            active: $('#active_checkbox').prop('checked'),
+                            admin: $('#admin_checkbox').prop('checked')
+                        },
+                        success: function (response, status, xhr) {
+                            var new_client = JSON.parse(response);
+                            alert("Consultant added!");
+                            $('#consultant_modal').modal("hide");
+                            //console.log(new_client);
+                            window.location.reload();
+                        },
+                        error: function (xhr, status, error) {
+                            // show error message in modal
+                            var err_msg = xhr.responseText;
+                            $('#consultant_modal').find('.modal-body').append('<div class="alert alert-warning alert-dismissible mt-4"><button type="button" class="close" data-dismiss="alert">&times;</button>' + err_msg + '</div>');
+                        }
+
+                    });
+
+                    //{% endif %}
+            }
+
+        {% endif %}
+
+
+        $(function () {
+            {% if active_consultant.admin %}
+                {% if consultant %}
+                    $('#delete_consultant').click(delete_consultant);
+                {% endif %}
+                $('#save_button').click(save_changes);
+            {% endif %}
+
+            $('#cancel_button').click(cancel_changes);
+            //$('#consultant_modal').modal('show');
+        })
+    </script>
+
+    <!--
+        <button type="button" class="btn btn-link" data-toggle="modal" data-target="#view_edit_participant_modal">
+            Edit participant
+        </button>
+    -->
+
+    <!-- The Modal -->
+    <div class="modal" id="consultant_modal" data-backdrop="static" data-keyboard="false">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+
+                <!-- Modal Header -->
+                <div class="modal-header">
+                    <h4 class="modal-title">{% if read_only %}View {% elif consultant %}Edit {% else %}Add {% endif %}
+                        consultant</h4>
+                    <!--<button type="button" class="close" data-dismiss="modal">&times;</button>-->
+                </div>
+
+                <!-- Modal body -->
+                <form>
+                    <div class="modal-body">
+                        <div class="row mb-2 text-muted">
+                            <div class="col">
+                                Internal ID: <span
+                                    {% if consultant %}id="consultant_id">{{ consultant.id }}{% else %}
+                                        >Assigned on save{% endif %}</span>
+                            </div>
+                            <div class="col">
+                                <label for="admin_checkbox" class="mr-2">Administrator</label>
+                                <input type="checkbox" name="admin" id="admin_checkbox" class=""
+                                       {% if consultant and consultant.admin %}value="1"
+                                       checked{% else %}value="0"{% endif %}
+                                       {% if consultant and active_consultant.id == consultant.id or read_only%}disabled{% endif %}>
+
+                            </div>
+                        </div>
+                        <hr>
+                        <h5>Consultant details</h5>
+                        <div class="form-row">
+                            <div class="form-group col">
+                                <label for="first_name">First name</label>
+                                <input type="text" class="form-control" id="first_name"
+                                       value="{% if consultant %}{{ consultant.first_name }}{% endif %}"
+                                       {% if read_only %}readonly{% endif %} required>
+                            </div>
+                            <div class="form-group col">
+                                <label for="last_name">Last name</label>
+                                <input type="text" class="form-control" id="last_name"
+                                       value="{% if consultant %}{{ consultant.last_name }}{% endif %}"
+                                       {% if read_only %}readonly{% endif %} required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group col">
+                                <label for="display_name">Display name</label>
+                                <input type="text" class="form-control" id="display_name"
+                                       value="{% if consultant %}{{ consultant.display_name }}{% endif %}"
+                                       {% if read_only %}readonly{% endif %} required>
+                                <span class="text-muted small">Each consultant's display name is shown to participants within comments and other communications.</span>
+
+                            </div>
+                            <div class="form-group col">
+                                <label for="email">Email address</label>
+                                <input type="email" class="form-control" id="email"
+                                       value="{% if consultant %}{{ consultant.email }}{% endif %}"
+                                       {% if read_only %}readonly{% endif %} required>
+                            </div>
+                        </div>
+                        {% if consultant %}
+                            {% if not read_only %}
+                                <div class="form-row">
+                                    <div class="form-group col">
+                                        <a href="javascript:$('#reset_password_controls').removeClass('d-none');$('#reset_password_link').addClass('d-none');"
+                                           id="reset_password_link">Reset password</a>
+                                        <div id="reset_password_controls" class="d-none">
+                                            <label for="reset_password">Enter new password</label>
+                                            <input type="password" id="reset_password" name="reset_password"
+                                                   class="form-control">
+                                            <a href="javascript:$('#reset_password_link').removeClass('d-none'); $('#reset_password').val(''); $('#reset_password_controls').addClass('d-none');">Cancel</a>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            <div class="form-row">
+                                <div class="form-group col">
+                                    <div id="reset_password_controls" class="">
+                                        <label for="reset_password">Enter password</label>
+                                        <input type="password" id="reset_password" name="reset_password"
+                                               class="form-control">
+                                    </div>
+                                </div>
+                            </div>
+
+                        {% endif %}
+
+                        <hr>
+
+                            <div class="form-row">
+                                <div class="col">
+                                    <label for="active_checkbox" class="mr-2">Active consultant</label>
+                                    <input type="checkbox" name="active" id="active_checkbox"
+                                           {% if consultant and not consultant.active %}value="0"{% else %}value="1" checked{% endif %}
+                                           {% if (consultant and active_consultant.id == consultant.id) or read_only %}disabled{% endif %}>
+                                </div>
+                            </div>
+
+                        <!-- Modal footer -->
+                        <div class="modal-footer">
+                            {% if not read_only %}
+                                {% if consultant and active_consultant.admin %}
+                                    <input type="button" value="Delete consultant" id="delete_consultant"
+                                           class="btn btn-danger mr-auto"
+                                           {% if active_consultant.id == consultant.id %}disabled{% endif %}>
+                                {% endif %}
+                                <input type="button" value="Cancel changes" id="cancel_button"
+                                       class="btn btn-secondary mr-2">
+                                <input type="submit" value="Save consultant" id="save_button"
+                                       class="btn btn-primary">
+                            {% else %}
+                                {% if consultant and active_consultant.admin %}
+                                    <a href="javascript:$('#consultant_modal').modal('hide');show_consultant_modal({{ consultant.id }},'edit')"
+                                       id="edit_button" class="btn btn-secondary">Edit</a>
+                                {% endif %}
+                                <input type="button" value="Done" id="done_button"
+                                       onclick="$('#consultant_modal').modal('hide')"
+                                       class="btn btn-primary">
+                            {% endif %}
+                        </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>

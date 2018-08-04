@@ -223,6 +223,70 @@ def client_modal_view(client_id):
     except db_models.ClientNotFoundError:
         abort(404)
 
+@app.route('/consultants/<consultant_id>/edit', methods=['GET'])
+def consultant_modal_edit(consultant_id):
+
+    c = get_active_consultant()
+    if not c or not c.admin:
+        abort(401)
+
+    try:
+        consultant_edit = db_models.Consultant(consultant_id)
+
+        return render_template('dashboard/modals/add_view_edit_consultant.html', consultant=consultant_edit.to_dict(), active_consultant=c)
+
+    except db_models.ConsultantNotFoundError:
+        abort(404)
+
+@app.route('/consultants/<consultant_id>/view', methods=['GET'])
+def consultant_modal_view(consultant_id):
+
+    c = get_active_consultant()
+    if not c or not c.admin:
+        abort(401)
+
+    try:
+        consultant_edit = db_models.Consultant(consultant_id)
+
+        return render_template('dashboard/modals/add_view_edit_consultant.html', consultant=consultant_edit.to_dict(), active_consultant=c, read_only=True)
+
+    except db_models.ConsultantNotFoundError:
+        abort(404)
+
+
+@app.route('/consultants/add', methods=['GET'])
+def consultants_modal_add():
+
+    c = get_active_consultant()
+    if not c or not c.admin:
+        abort(401)
+
+    return render_template('dashboard/modals/add_view_edit_consultant.html', active_consultant=c)
+
+
+@app.route('/projects/add', methods=['GET'])
+def project_modal_add():
+
+    c = get_active_consultant()
+    if not c or not c.admin:
+        abort(401)
+
+    return render_template('dashboard/modals/add_edit_project.html', active_consultant=c.to_dict())
+
+@app.route('/projects/<project_id>/edit', methods=['GET'])
+def project_modal_edit(project_id):
+
+    c = get_active_consultant()
+    if not c or not c.admin:
+        abort(401)
+
+    try:
+        project = db_models.Project(project_id)
+
+        return render_template('dashboard/modals/add_edit_project.html', active_consultant=c.to_dict(), project=project.to_dict())
+
+    except db_models.ProjectNotFound:
+        abort(404)
 
 ## Login and logout
 
@@ -235,9 +299,9 @@ def consultant_login():
             c = db_models.Consultant.login(request.form['email'], request.form['password'])
             session['active_consultant'] = c.id
             return redirect(url_for('index'))
-        except db_models.ConsultantLoginError:
+        except db_models.ConsultantLoginError as e:
             return render_template('dashboard/login.html',
-                                   error="Sorry, but the email address and password that you entered do not appear to match. Please try agian.",
+                                   error=str(e),
                                    page_data=get_page_data())
         except db_models.ConsultantNotFoundError:
             return render_template('dashboard/login.html',

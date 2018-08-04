@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Add/edit project form</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css"
+          integrity="sha384-hWVjflwFxL6sNzntih27bfxkr27PmbbK/iSvJ+a4+0owXq79v+lsFkW54bOGbiDQ" crossorigin="anonymous">
+</head>
+<body>
+
+
+<div class="container">
+
+    <script>
+        {% if project %}
+            function delete_project(e) {
+                e.preventDefault();
+
+                if (confirm("Are you sure you wish to delete this project?\n\nAll of the project's data will be permanently deleted and unrecoverable.\n\nYou can also download all of this project's data before deleting it by clicking on the 'Download project bundle' link within this project's page.\n\nIf you are still sure that you wish to delete this project, please press OK, otherwise Cancel to go back.")) {
+
+                    var code_confirm = prompt("Please enter this project's code in order to continue deleting it");
+
+                    if (code_confirm == {{ project.code }}) {
+                        //delete code
+                    }
+
+                }
+            }
+        {% endif %}
+
+
+        function cancel_changes(e) {
+            e.preventDefault();
+            if (confirm("Are you sure you wish to discard your changes?")) {
+                $('#project_modal').modal("hide");
+            }
+        }
+
+
+        function save_changes(e) {
+            e.preventDefault();
+            {% if project %}
+                $.ajax({
+                    url: '/api/projects/{{ project.id }}',
+                    method: 'put',
+                    data: {
+                        //
+                    },
+                    success: function () {
+                        alert("Project updated!");
+                        $('#project_modal').modal("hide");
+                        window.location.reload();
+                    }
+                });
+            {% else %}
+                $.ajax({
+                    url: '/api/projects/',
+                    method: 'post',
+                    data: {
+                        //
+                    },
+                    success: function (data, status, xhr) {
+                        var added_participant = JSON.parse(data);
+                        alert("Project added!");
+                        $('#project_modal').modal("hide");
+                    }
+                });
+
+            {% endif %}
+        }
+
+        function load_client_list(selected_id) {
+
+            // get clients from server
+            // for each client, add <option> to client_list datalist
+
+            $.get('/api/clients', function (data, status) {
+                var clients = JSON.parse(data);
+                for (var i = 0; i < clients.length; i++) {
+
+                    if (clients[i].id == selected_id) {
+                        $('#client_list').append('<option value="' + clients[i].id + '" selected>' + clients[i].description + '</option>');
+                    }
+                    else {
+                        $('#client_list').append('<option value="' + clients[i].id + '">' + clients[i].description + '</option>');
+                    }
+
+                }
+            });
+        }
+
+        function load_consultant_list(selected_consultants) {
+
+            // get clients from server
+            // for each client, add <option> to client_list datalist
+
+            console.log(selected_consultants);
+
+            $.get('/api/consultants', function (data, status) {
+                var consultants = JSON.parse(data);
+                for (var i = 0; i < consultants.length; i++) {
+
+                    if ($.inArray(consultants[i].id, selected_consultants) != -1) {
+                        $('#consultant_list').append('<option value="' + consultants[i].id + '" selected>' + consultants[i].first_name + ' ' + consultants[i].last_name + '</option>');
+                    }
+                    else {
+                        $('#consultant_list').append('<option value="' + consultants[i].id + '">' + consultants[i].first_name + ' ' + consultants[i].last_name + '</option>');
+                    }
+
+                }
+            });
+        }
+
+        function set_project_start_date(d) {
+
+            var date = new Date(d);
+            var date_string = date.getFullYear() + '-' + String(parseInt(date.getMonth()) + 1).padStart(2, "0") + '-' + String(date.getDate()).padStart(2, "0");
+            $('#start_date').val(date_string);
+        }
+
+        $(function () {
+            {% if project and active_consultant.admin %}
+                $('#delete_project').click(delete_project);
+            {% endif %}
+            $('#cancel_button').click(cancel_changes);
+            {% if active_consultant.admin %}
+                $('#save_button').click(save_changes);
+            {% endif %}
+            load_client_list({% if project %}{{ project.client.id }}{% endif %});
+            load_consultant_list({% if project %}{{ project.consultants }}{% endif %});
+            {% if project %}
+                set_project_start_date('{{ project.start_ts }}');
+            {% endif %}
+            $('#project_modal').modal('show');
+        })
+    </script>
+
+    <!-- The Modal -->
+    <div class="modal" id="project_modal" data-backdrop="static" data-keyboard="false">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+
+                <!-- Modal Header -->
+                <div class="modal-header">
+                    <h4 class="modal-title">{% if project %}Edit {% else %}Add {% endif %}
+                        project</h4>
+                </div>
+
+                <!-- Modal body -->
+                <form>
+                    <div class="modal-body">
+
+                        <div class="row mb-2 text-muted">
+                            <div class="col">
+                                Internal ID: <span
+                                    {% if project %}id="project_id">{{ project.id }}{% else %}
+                                        >Assigned on save{% endif %}</span>
+                            </div>
+                            <div class="form-group col">
+                                <label for="active" class="mr-2">Active project</label>
+                                <input type="checkbox" class="" id="active"
+                                        {% if project and not project.active %} value="0" {% else %} value="1"
+                                       checked {% endif %}>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="form-row">
+                            <div class="form-group col">
+                                <label for="title">Project description</label>
+                                <input type="text" class="form-control" id="title"
+                                       value="{% if project %}{{ project.title }}{% endif %}">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col">
+                                <label for="code">Project code</label>
+                                <input type="text" class="form-control" id="code"
+                                       value="{% if project %}{{ project.code }}{% endif %}">
+                            </div>
+                            <div class="form-group col">
+                                <label for="client_list">Client</label>
+
+                                <select name="client" id="client_list" class="custom-select">
+                                    <option value="0">Please select a client</option>
+                                </select>
+
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col">
+                                <label for="start_date" class="mr-2">Start date</label>
+                                <input class="form-control" type="date" value="" name="start_date" id="start_date">
+                            </div>
+                            <div class="col"></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col">
+                                <label for="consultant_list" class="mr-2">Assigned consultants</label>
+                                {% if project %}<a
+                                        id="enable_consultants_link"
+                                        href="javascript:$('#consultant_list').prop('disabled','');$('#enable_consultants_link').remove();">Enable
+                                    consultant selection</a>{% endif %}
+                                <select name="consultants" id="consultant_list" class="custom-select" multiple
+                                        {% if project %}disabled{% endif %}>
+
+                                </select>
+                            </div>
+
+                        </div>
+
+                        {% if not project %}
+
+                            <div class="form-row">
+                                <div class="form-group col">
+                                    <label for="participants" class="mr-2">Number of participants to add</label>
+                                    <input class="form-control" type="number" value="0" name="participants"
+                                           id="participants">
+                                    <span class="small text-muted">Participants using default values will be created for this project. You can always add more participants at a later date from the project's page.</span>
+                                </div>
+
+                            </div>
+                        {% else %}
+                            <input type="hidden" value="0" name="participants">
+                        {% endif %}
+
+                    </div>
+
+                    <!-- Modal footer -->
+                    <div class="modal-footer">
+
+                        {% if project %}
+                            <input type="button" value="Delete project" id="delete_project"
+                                   class="btn btn-danger mr-auto">
+                        {% endif %}
+
+                            <input type="button" value="Cancel changes" id="cancel_button"
+                                   class="btn btn-secondary mr-2">
+                            <input type="submit" value="Save project" id="save_button"
+                                   class="btn btn-primary">
+
+
+
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>

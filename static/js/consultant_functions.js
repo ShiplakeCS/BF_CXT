@@ -262,6 +262,22 @@ function show_client_modal(client_id=null, mode){
     });
 
 
+}function show_consultant_modal(consultant_id=null, mode){
+
+    var ending;
+
+    if (mode == 'add'){
+        ending = 'add';
+    }
+    else if (mode == 'edit'){
+        ending = consultant_id + '/edit'
+    }
+    else if (mode == 'view'){
+        ending = consultant_id + '/view'
+    }
+    $('#consultant_modal_placeholder').load('/consultants/' + ending, null, function () {
+        $('#consultant_modal').modal('show');
+    });
 
 
 }
