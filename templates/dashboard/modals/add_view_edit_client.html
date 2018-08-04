@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Add/edit participant form</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css"
+          integrity="sha384-hWVjflwFxL6sNzntih27bfxkr27PmbbK/iSvJ+a4+0owXq79v+lsFkW54bOGbiDQ" crossorigin="anonymous">
+</head>
+<body>
+
+<div class="container">
+
+    <script>
+
+        function cancel_changes(e) {
+            e.preventDefault();
+            if (confirm("Are you sure you wish to discard your changes?")) {
+                // reset client form
+                $('#client_modal').modal("hide");
+            }
+        }
+
+        {% if client %}
+            function delete_client(e) {
+                e.preventDefault();
+                if (confirm("Are you sure you wish to delete this client?\n\nAll data related to this client will be permanently deleted and unrecoverable.\n\nIf you are still sure that you wish to delete this client, please press OK, otherwise Cancel to go back.")) {
+                    $.ajax({
+                        url: '/api/clients/' + {{ client.id }},
+                        method: 'delete',
+                        success: function (response, status, xhr) {
+                            alert('Client deleted');
+                            $('#client_modal').modal('hide');
+                            window.location.reload();
+                        },
+                        error: function (xhr, status, error) {
+                            // show error message in modal
+                            var err_msg = xhr.responseText;
+                            $('#client_modal').find('.modal-body').append('<div class="alert alert-warning alert-dismissible mt-4"><button type="button" class="close" data-dismiss="alert">&times;</button>' + err_msg + '</div>');
+                        }
+                    });
+                }
+
+            }
+        {% endif %}
+
+        function save_changes(e) {
+            e.preventDefault();
+            //{% if client %}
+                $.ajax({
+                    url: '/api/clients/{{ client.id }}',
+                    method: 'put',
+                    data: {
+                        description: $('#description').val(),
+                        contact_name: $('#contact_name').val(),
+                        contact_email: $('#contact_email').val(),
+                        contact_phone: $('#contact_phone').val()
+                    },
+                    success: function () {
+                        alert("Client details updated!");
+                        $('#client_modal').modal("hide");
+                        window.location.reload();
+                    },
+                    error: function (xhr, status, error) {
+                        // show error message in modal
+                        var err_msg = xhr.responseText;
+                        $('#client_modal').find('.modal-body').append('<div class="alert alert-warning alert-dismissible mt-4"><button type="button" class="close" data-dismiss="alert">&times;</button>' + err_msg + '</div>');
+                    }
+
+                });
+                //    {% else %}
+                // Add new client
+                $.ajax({
+                    url: '/api/clients/',
+                    method: 'post',
+                    data: {
+                        description: $('#description').val(),
+                        contact_name: $('#contact_name').val(),
+                        contact_email: $('#contact_email').val(),
+                        contact_phone: $('#contact_phone').val()
+                    },
+                    success: function (response, status, xhr) {
+                        var new_client = JSON.parse(response);
+                        alert("Client details added!");
+                        $('#client_modal').modal("hide");
+                        //console.log(new_client);
+                        window.location.reload();
+                    },
+                    error: function (xhr, status, error) {
+                        // show error message in modal
+                        var err_msg = xhr.responseText;
+                        $('#client_modal').find('.modal-body').append('<div class="alert alert-warning alert-dismissible mt-4"><button type="button" class="close" data-dismiss="alert">&times;</button>' + err_msg + '</div>');
+                    }
+
+                });
+
+                //{% endif %}
+        }
+
+
+        $(function () {
+            $('#delete_client').click(delete_client);
+            $('#cancel_button').click(cancel_changes);
+            $('#save_button').click(save_changes);
+            $('#client_modal').modal('show');
+        })
+    </script>
+
+    <!--
+        <button type="button" class="btn btn-link" data-toggle="modal" data-target="#view_edit_participant_modal">
+            Edit participant
+        </button>
+    -->
+
+    <!-- The Modal -->
+    <div class="modal" id="client_modal" data-backdrop="static" data-keyboard="false">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+
+                <!-- Modal Header -->
+                <div class="modal-header">
+                    <h4 class="modal-title">{% if read_only %}View {% elif client %}Edit {% else %}Add {% endif %}
+                        client</h4>
+                    <!--<button type="button" class="close" data-dismiss="modal">&times;</button>-->
+                </div>
+
+                <!-- Modal body -->
+                <form>
+                    <div class="modal-body">
+
+                        <div class="form-row">
+                            <div class="form-group col">
+                                <h5>Client name</h5>
+                                <!--<label for="display_name">Client name</label>-->
+                                <input type="text" class="form-control" id="description"
+                                       value="{% if client %}{{ client.description }}{% endif %}"
+                                       {% if read_only %}readonly{% endif %} required>
+                            </div>
+                        </div>
+                        <div class="row mb-2 text-muted">
+                            <div class="col">
+                                Internal ID: <span
+                                    {% if client %}id="client_id">{{ client.id }}{% else %}
+                                        >Assigned on save{% endif %}</span>
+                            </div>
+                        </div>
+                        <hr>
+                        <h5>Client contact details</h5>
+                        <div class="form-row">
+                            <div class="form-group col">
+                                <label for="contact_name">Contact name</label>
+                                <input type="text" class="form-control" id="contact_name"
+                                       value="{% if client %}{{ client.contact_name }}{% endif %}"
+                                       {% if read_only %}readonly{% endif %} required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col">
+                                <label for="contact_email">Contact email</label>
+                                <input type="email" class="form-control" id="contact_email"
+                                       value="{% if client %}{{ client.contact_email }}{% endif %}"
+                                       {% if read_only %}readonly{% endif %} required>
+                            </div>
+                            <div class="form-group col">
+                                <label for="contact_email">Contact phone</label>
+                                <input type="tel" class="form-control" id="contact_phone"
+                                       value="{% if client %}{{ client.contact_phone }}{% endif %}"
+                                       {% if read_only %}readonly{% endif %}>
+                            </div>
+                        </div>
+
+                        <!-- Modal footer -->
+                        <div class="modal-footer">
+                            {% if not read_only %}
+                                {% if client and consultant.admin %}
+                                    <input type="button" value="Delete this client" id="delete_client"
+                                           class="btn btn-danger mr-auto">
+                                {% endif %}
+                                <input type="button" value="Cancel changes" id="cancel_button"
+                                       class="btn btn-secondary mr-2">
+                                <input type="submit" value="Save client" id="save_button"
+                                       class="btn btn-primary">
+                            {% else %}
+                                {% if client and consultant.admin %}
+                                    <a href="javascript:$('#client_modal').modal('hide');show_client_modal({{ client.id }},'edit')"
+                                       id="edit_button" class="btn btn-secondary">Edit</a>
+                                {% endif %}
+                                <input type="button" value="Done" id="done_button"
+                                       onclick="$('#client_modal').modal('hide')"
+                                       class="btn btn-primary">
+                            {% endif %}
+                        </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>

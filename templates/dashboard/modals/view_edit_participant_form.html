@@ -14,17 +14,19 @@
 </head>
 <body>
 -->
+
 <div class="container">
 
     <script>
-        function delete_participant(e) {
-            e.preventDefault();
+        {% if participant %}
+            function delete_participant(e) {
+                e.preventDefault();
 
-            if (confirm("Are you sure you wish to delete this participant?\n\nAll of their data will be permanently deleted and unrecoverable.\nIf you simply wish to prevent participants from accessing this research you can set their status to inactive.\n\nYou can also download all of this participant's data before deleting it by clicking on the 'Download participant data' link within the View/Edit Participant form.\n\nIf you are still sure that you wish to delete this participant, please press OK, otherwise Cancel to go back.")) {
-                delete_participant_from_project({{ participant.project_id }}, {{ participant.id }});
+                if (confirm("Are you sure you wish to delete this participant?\n\nAll of their data will be permanently deleted and unrecoverable.\nIf you simply wish to prevent participants from accessing this research you can set their status to inactive.\n\nYou can also download all of this participant's data before deleting it by clicking on the 'Download participant data' link within the View/Edit Participant form.\n\nIf you are still sure that you wish to delete this participant, please press OK, otherwise Cancel to go back.")) {
+                    delete_participant_from_project({{ participant.project_id }}, {{ participant.id }});
+                }
             }
-        }
-
+        {% endif %}
         function cancel_changes(e) {
             e.preventDefault();
             if (confirm("Are you sure you wish to discard your changes?")) {
@@ -49,72 +51,96 @@
                         window.location.reload();
                     }
                 });
-            {% endif %}
-        }
+            {% else %}
+                $.ajax({
+                    url: '/api/projects/{{ proj_id }}/participants/',
+                    method: 'post',
+                    data: {
+                        display_name: $('#display_name').val(),
+                        description: $('#description').val()
+                    },
+                    success: function (data, status, xhr) {
+                        var added_participant = JSON.parse(data);
+                        alert("Participant added!");
+                        $('#view_edit_participant_modal').modal("hide");
+                        // add new participant to project screen
+                        $('#participant_info_card').find('.card-body').append('<hr>\n'+render_participant_details(added_participant));
+                        load_and_show_participant_modal(added_participant.project_id,added_participant.id, 'view');
+                    }
+                });
 
-        function add_url_domain() {
-            $('#login_url').val(window.location.protocol + "//" + window.location.host + "/p/" + $('#login_url').val() + '/login');
-        }
-
-        function copy_url_to_clipboard(e) {
-            e.preventDefault();
-            var copyText = document.getElementById("login_url");
-            /* Select the text field */
-            copyText.select();
-            /* Copy the text inside the text field */
-            document.execCommand("copy");
-
-        }
-
-        function get_new_pin(e) {
-            e.preventDefault();
-            {% if participant %}
-                $.get('/projects/{{ participant.project_id }}/participants/{{ participant.id }}/edit/new/pin',
-                    function (data, status) {
-                        if (status == "success") {
-                            console.log(data);
-                            $('#pin').val(JSON.parse(data).pin);
-                            $('#pin_form').append('<span class="text-success small">Participant PIN has been updated. They will no longer be able to login without this new PIN.</span>');
-                        }
-                    });
             {% endif %}
         }
 
 
-        function get_new_url(e) {
-            e.preventDefault();
-            {% if participant %}
-                $.get('/projects/{{ participant.project_id }}/participants/{{ participant.id }}/edit/new/url',
-                    function (data, status) {
-                        if (status == "success") {
-                            console.log(data);
-                            $('#login_url').val(JSON.parse(data).login_url);
-                            add_url_domain();
-                            $('#url_message').find('span').remove();
-                            $('#url_message').append('<span class="text-success">Login URL has been updated. They will no longer be able to login without this new PIN.</span>');
-                        }
-                    });
-            {% endif %}
 
-        }
+        {% if participant %}
+            function add_url_domain() {
+                $('#login_url').val(window.location.protocol + "//" + window.location.host + "/p/" + $('#login_url').val() + '/login');
+            }
+
+            function copy_url_to_clipboard(e) {
+                e.preventDefault();
+                var copyText = document.getElementById("login_url");
+                /* Select the text field */
+                copyText.select();
+                /* Copy the text inside the text field */
+                document.execCommand("copy");
+
+            }
+
+            function get_new_pin(e) {
+                e.preventDefault();
+                {% if participant %}
+                    $.get('/projects/{{ participant.project_id }}/participants/{{ participant.id }}/edit/new/pin',
+                        function (data, status) {
+                            if (status == "success") {
+                                console.log(data);
+                                $('#pin').val(JSON.parse(data).pin);
+                                $('#pin_form').append('<span class="text-success small">Participant PIN has been updated. They will no longer be able to login without this new PIN.</span>');
+                            }
+                        });
+                {% endif %}
+            }
+
+
+            function get_new_url(e) {
+                e.preventDefault();
+                {% if participant %}
+                    $.get('/projects/{{ participant.project_id }}/participants/{{ participant.id }}/edit/new/url',
+                        function (data, status) {
+                            if (status == "success") {
+                                console.log(data);
+                                $('#login_url').val(JSON.parse(data).login_url);
+                                add_url_domain();
+                                $('#url_message').find('span').remove();
+                                $('#url_message').append('<span class="text-success">Login URL has been updated. They will no longer be able to login without this new PIN.</span>');
+                            }
+                        });
+                {% endif %}
+
+            }
+        {% endif %}
 
         $(function () {
-            $('#delete_participant').click(delete_participant);
+            {% if participant %}
+                $('#delete_participant').click(delete_participant);
+                $('#url_copy_button').click(copy_url_to_clipboard);
+                $('#pin_button').click(get_new_pin);
+                $('#new_url_link').click(get_new_url);
+                add_url_domain();
+            {% endif %}
             $('#cancel_button').click(cancel_changes);
             $('#save_button').click(save_changes);
-            $('#url_copy_button').click(copy_url_to_clipboard);
-            $('#pin_button').click(get_new_pin);
-            $('#new_url_link').click(get_new_url);
-            add_url_domain();
-            //$('#view_edit_participant_modal').modal('show');
+            $('#view_edit_participant_modal').modal('show');
         })
     </script>
 
-<!--
-    <button type="button" class="btn btn-link" data-toggle="modal" data-target="#view_edit_participant_modal">
-        Edit participant
-    </button>
--->
+    <!--
+        <button type="button" class="btn btn-link" data-toggle="modal" data-target="#view_edit_participant_modal">
+            Edit participant
+        </button>
+    -->
 
     <!-- The Modal -->
     <div class="modal" id="view_edit_participant_modal" data-backdrop="static" data-keyboard="false">
@@ -123,7 +149,8 @@
 
                 <!-- Modal Header -->
                 <div class="modal-header">
-                    <h4 class="modal-title">{% if read_only %}View {% elif participant %}Edit {% else %}Add {% endif %} participant</h4>
+                    <h4 class="modal-title">{% if read_only %}View {% elif participant %}Edit {% else %}Add {% endif %}
+                        participant</h4>
                     <!--<button type="button" class="close" data-dismiss="modal">&times;</button>-->
                 </div>
 
@@ -152,12 +179,12 @@
                                         {% if participant.active %}
                                             <a id="participant_{{ participant.id }}_active_badge"
                                                class="badge badge-success text-white ml-2" {% if not read_only %}
-                                               href="javascript:set_participant_active_state({{ participant.id}}, 'false')"
-                                                {% endif %}>Active</a>
+                                               href="javascript:set_participant_active_state({{ participant.id }}, 'false')"
+                                            {% endif %}>Active</a>
                                         {% else %}
                                             <a id="participant_{{ participant.id }}_active_badge"
                                                class="badge badge-secondary text-white ml-2" {% if not read_only %}
-                                               href="javascript:set_participant_active_state({{ participant.id}}, 'true')"{% endif %}>Inactive</a>
+                                               href="javascript:set_participant_active_state({{ participant.id }}, 'true')"{% endif %}>Inactive</a>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -230,19 +257,22 @@
                     <!-- Modal footer -->
                     <div class="modal-footer">
                         {% if not read_only %}
-                        <input type="button" value="Delete this participant" id="delete_participant"
-                               class="btn btn-danger mr-auto">
-                        <input type="button" value="Cancel changes" id="cancel_button"
-                               class="btn btn-secondary mr-2">
-                        <input type="submit" value="Save participant" id="save_button"
-                               class="btn btn-primary">
+                            {% if participant %}
+                                <input type="button" value="Delete this participant" id="delete_participant"
+                                       class="btn btn-danger mr-auto">
+                            {% endif %}
+                            <input type="button" value="Cancel changes" id="cancel_button"
+                                   class="btn btn-secondary mr-2">
+                            <input type="submit" value="Save participant" id="save_button"
+                                   class="btn btn-primary">
                         {% else %}
                             {% if participant %}
                                 <a href="javascript:$('#view_edit_participant_modal').modal('hide');load_and_show_participant_modal({{ participant.project_id }},{{ participant.id }},'edit')"
                                    id="edit_button" class="btn btn-secondary">Edit</a>
                             {% endif %}
-                        <input type="button" value="Done" id="done_button" onclick="$('#view_edit_participant_modal').modal('hide')"
-                               class="btn btn-primary">
+                            <input type="button" value="Done" id="done_button"
+                                   onclick="$('#view_edit_participant_modal').modal('hide')"
+                                   class="btn btn-primary">
 
                         {% endif %}
 

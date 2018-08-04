@@ -469,7 +469,7 @@ class Client:
         # Rempve client from DB
         db.execute("DELETE FROM Client WHERE id=?", str(self.id))
         db.commit()
-        return 'Client {}({}) removed from database'.format(self.description, self.id)
+        return self
 
     @staticmethod
     def add_new_to_db(description, c_name, c_email, c_phone):

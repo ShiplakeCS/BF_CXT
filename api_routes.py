@@ -3,6 +3,7 @@ from cxt_app import app, db_models, tests
 import json, os, shutil
 from werkzeug.utils import secure_filename
 
+
 # Read for more details on builing an API, particularly its routes: https://www.restapitutorial.com/index.html
 # Read for more details on authentication and authorisation when accessing an API: https://blog.restcase.com/restful-api-authentication-basics/
 
@@ -14,17 +15,17 @@ def favicon():
 
 @app.route('/config')
 def show_config():
-    return json.dumps({"upload_folder":app.config['UPLOAD_FOLDER'], "moment_media_folder": app.config['MOMENT_MEDIA_FOLDER']}, indent=4)
-
+    return json.dumps(
+        {"upload_folder": app.config['UPLOAD_FOLDER'], "moment_media_folder": app.config['MOMENT_MEDIA_FOLDER']},
+        indent=4)
 
 
 # TODO: These routes do not yet represent a true, stateless RESTful API. They require that a user has set up a session and has logged in/authenticated to that session. This works for web-app, but wouldn't for a native app requesting info via an API.
 
 def auth_consultant():
-
     # TODO: Replace logic for authroising a consultant to provide a true authenticated API
 
-    return 'active_consultant' in session and session['active_consultant']is not None
+    return 'active_consultant' in session and session['active_consultant'] is not None
 
 
 def get_active_consultant():
@@ -35,17 +36,14 @@ def get_active_consultant():
 
 
 def auth_participant(id):
-
     id = int(id)
     return 'active_participant_id' in session and int(session['active_participant_id']) == id
-
 
 
 ## Consultant routes
 
 @app.route('/api/consultants/<int:id>', methods=['GET'])
 def get_consultant(id):
-
     if not auth_consultant():
         abort(401)
 
@@ -54,23 +52,23 @@ def get_consultant(id):
         return c.to_json()
 
     except db_models.ConsultantNotFoundError:
-        return json.dumps({"error_code":"301", "error_text":"No consultant found with ID {}".format(id)}), 404
+        return json.dumps({"error_code": "301", "error_text": "No consultant found with ID {}".format(id)}), 404
+
 
 @app.route('/api/consultants/', methods=['GET'])
 def get_consultants():
-
     if not auth_consultant():
         abort(401)
 
     # TODO: Add get all consultants static method to consultant object
     return db_models.Consultant.get_all_consultants_json()
 
-@app.route('/api/consultants/<c_id>/change_password', methods=['POST'])
-def  change_consultant_password(c_id):
 
+@app.route('/api/consultants/<c_id>/change_password', methods=['POST'])
+def change_consultant_password(c_id):
     c = get_active_consultant()
 
-    if not c or not c.admin or c.id!=int(c_id):
+    if not c or not c.admin or c.id != int(c_id):
         abort(401)
     try:
         c.change_password(request.form['old_pass'], request.form['new_pass'])
@@ -78,11 +76,11 @@ def  change_consultant_password(c_id):
     except:
         return 'Incorrect original password provided', 401
 
+
 ## Participant routes
 
 @app.route('/api/participants/<int:id>', methods=['GET', 'PUT'])
 def get_participant(id):
-
     # Only authorise is a consultant is logged in or a participant has logged in and the currently logged-in
     # participant is the same as the participant's info being requested.
 
@@ -92,7 +90,7 @@ def get_participant(id):
             try:
                 return db_models.Participant(id).to_json()
             except db_models.ParticipantNotFoundError:
-                return json.dumps({"error_code":"101", "error_text":"No participant found with ID {}".format(id)})
+                return json.dumps({"error_code": "101", "error_text": "No participant found with ID {}".format(id)})
 
         else:
             abort(401)
@@ -116,19 +114,17 @@ def get_participant(id):
             abort(401)
 
 
-
 @app.route('/api/participants/<p_id>/moments/since/<m_id>')
 def get_participant_moments_since_id(p_id, m_id):
-
     if auth_consultant() or auth_participant(p_id):
         return db_models.Moment.get_moments_for_participant_json(int(p_id), int(m_id))
 
     else:
         abort(401)
 
+
 @app.route('/api/participants/<p_id>/moments/')
 def get_participants_moments(p_id):
-
     min_id = None
     max_id = None
     limit = None
@@ -149,15 +145,15 @@ def get_participants_moments(p_id):
     else:
         abort(401)
 
+
 @app.route('/api/participants/<p_id>/moments/<moment_id>/', methods=['DELETE'])
 def delete_participant_moment(p_id, moment_id):
-
     if auth_consultant() or auth_participant(p_id):
 
         try:
             moment_to_delete = db_models.Moment(moment_id)
             if moment_to_delete.parent_participant_id != int(p_id):
-                abort(401) # Not the correct participant therefore cannot delete
+                abort(401)  # Not the correct participant therefore cannot delete
             moment_to_delete.delete_from_db()
             return moment_to_delete.to_json()
 
@@ -167,10 +163,8 @@ def delete_participant_moment(p_id, moment_id):
         abort(401)
 
 
-
 @app.route('/api/participants/<p_id>/moments/comments/')
 def get_participants_comments(p_id):
-
     if auth_consultant() or auth_participant(p_id):
 
         comments_since_id = request.args.get('since')
@@ -223,6 +217,7 @@ def get_participant_moment_media_video(p_id, moment_id, media_id, filename):
     else:
         abort(401)
 
+
 @app.route('/api/participants/<p_id>/moments/<moment_id>/media/<media_id>/<size>/')
 def get_participant_moment_media(p_id, moment_id, media_id, size):
     if auth_consultant() or auth_participant(p_id):
@@ -246,58 +241,57 @@ def get_participant_moment_media(p_id, moment_id, media_id, size):
     else:
         abort(401)
 
+
 ## Moment media
 
-@app.route('/api/participants/<p_id>/moments/media/temp/<filename>', methods=['GET','DELETE'])
+@app.route('/api/participants/<p_id>/moments/media/temp/<filename>', methods=['GET', 'DELETE'])
 def delete_temp_media_file(p_id, filename):
     if auth_consultant() or auth_participant(p_id):
         filename = secure_filename(filename)
 
         if request.method.upper() == "DELETE":
             try:
-                os.remove(os.path.join(app.config['UPLOAD_FOLDER'],filename))
+                os.remove(os.path.join(app.config['UPLOAD_FOLDER'], filename))
                 if os.path.isfile(os.path.join(app.config['UPLOAD_FOLDER'], "{}_thumb.jpg".format(filename))):
                     os.remove(os.path.join(app.config['UPLOAD_FOLDER'], "{}_thumb.jpg".format(filename)))
-                return json.dumps({'deleted_filepath':filename})
+                return json.dumps({'deleted_filepath': filename})
             except:
                 abort(400)
         elif request.method.upper() == "GET":
             try:
-                return send_file(os.path.join(app.config['UPLOAD_FOLDER'],filename))
+                return send_file(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             except:
                 abort(404)
     else:
         abort(401)
 
+
 @app.route('/api/participants/<p_id>/moments/<moment_id>/comments/', methods=['post'])
 def add_participant_moment_comment(p_id, moment_id):
-
     if auth_participant(p_id):
 
         comment_text = request.values['text']
         if len(comment_text) > 0:
             new_comment_id = db_models.Moment(moment_id).add_comment(comment_text)
-            return json.dumps({'new_comment_id':new_comment_id})
+            return json.dumps({'new_comment_id': new_comment_id})
         else:
             abort(400)
     else:
         abort(401)
 
 
-
 ## Project routes
 
 @app.route('/api/projects/', methods=['GET'])
 def get_projects():
-
     if not auth_consultant():
         abort(401)
 
     return db_models.Project.get_all_projects_json()
 
+
 @app.route('/api/projects/<int:project_id>', methods=['GET'])
 def get_project(project_id):
-
     if not auth_consultant():
         abort(401)
 
@@ -305,12 +299,11 @@ def get_project(project_id):
         return db_models.Project(project_id).to_json()
 
     except db_models.ProjectNotFound:
-        return json.dumps({"error_code":201, "error_text": "No project found with ID {}".format(project_id)}), 404
+        return json.dumps({"error_code": 201, "error_text": "No project found with ID {}".format(project_id)}), 404
 
 
 @app.route('/api/projects/<int:project_id>/client', methods=['GET'])
 def get_project_client(project_id):
-
     if not auth_consultant():
         abort(401)
 
@@ -318,12 +311,11 @@ def get_project_client(project_id):
         return db_models.Project(project_id).client.to_json()
 
     except db_models.ProjectNotFound:
-        return json.dumps({"error_code":201, "error_text": "No project found with ID {}".format(project_id)}), 404
+        return json.dumps({"error_code": 201, "error_text": "No project found with ID {}".format(project_id)}), 404
 
 
 @app.route('/api/projects/<int:project_id>/consultants', methods=['GET'])
 def get_project_consultants(project_id):
-
     if not auth_consultant():
         abort(401)
 
@@ -336,11 +328,11 @@ def get_project_consultants(project_id):
         return json.dumps(consultant_dicts, indent=4)
 
     except db_models.ProjectNotFound:
-        return json.dumps({"error_code":201, "error_text": "No project found with ID {}".format(project_id)}), 404
+        return json.dumps({"error_code": 201, "error_text": "No project found with ID {}".format(project_id)}), 404
+
 
 @app.route('/api/projects/<project_id>/activate', methods=['POST'])
 def set_project_active_state(project_id):
-
     if not auth_consultant():
         abort(401)
 
@@ -361,32 +353,43 @@ def set_project_active_state(project_id):
     except ValueError:
         abort(400)
 
-@app.route('/api/projects/<project_id>/participants/', methods=['GET'])
-def get_project_participants(project_id):
 
+@app.route('/api/projects/<project_id>/participants/', methods=['GET', 'POST'])
+def get_project_participants(project_id):
     if not auth_consultant():
         abort(401)
 
-
     try:
-        project_participants = db_models.Participant.get_participants_for_project(project_id)
+        if request.method == 'GET':
+            project_participants = db_models.Participant.get_participants_for_project(project_id)
 
-        participants_dicts = []
+            participants_dicts = []
 
-        for p in project_participants:
+            for p in project_participants:
+                participants_dicts.append(p.to_dict())
 
-            participants_dicts.append(p.to_dict())
+            return json.dumps(participants_dicts, indent=4)
 
-        return json.dumps(participants_dicts, indent=4)
+        elif request.method == "POST":
+
+            project = db_models.Project(project_id)
+            consultant = get_active_consultant()
+
+            if not project.consultant_is_assigned(consultant) and not consultant.admin:
+                return 'Only consultants assigned to this project can add participants.', 401
+
+            new_participant = project.add_new_participant(request.values['display_name'], True,
+                                                          request.values['description'])
+
+            return new_participant.to_json()
 
     except db_models.ProjectNotFound:
 
-        return json.dumps({"error_code":"201", "error_text":"No project found with ID {}".format(project_id)}), 404
+        return json.dumps({"error_code": "201", "error_text": "No project found with ID {}".format(project_id)}), 404
 
 
 @app.route('/api/projects/<project_id>/participants/<participant_id>', methods=["PUT", "GET", "DELETE"])
 def api_projects_participant(project_id, participant_id):
-
     if not auth_consultant():
         abort(401)
 
@@ -432,7 +435,6 @@ def api_projects_participant(project_id, participant_id):
 
 @app.route('/api/projects/<proj_id>/moments', methods=['GET'])
 def get_project_moments(proj_id):
-
     if not auth_consultant():
         abort(401)
 
@@ -458,9 +460,9 @@ def get_project_moments(proj_id):
 
     return json.dumps(moment_dicts, indent=4)
 
+
 @app.route('/api/projects/<proj_id>/moments/<moment_id>/comments/', methods=['post'])
 def add_project_moment_comment(proj_id, moment_id):
-
     if not auth_consultant():
         abort(401)
 
@@ -476,18 +478,18 @@ def add_project_moment_comment(proj_id, moment_id):
 
 @app.route('/api/projects/<proj_id>/moments/<moment_id>/comments/<comment_id>', methods=['DELETE'])
 def api_project_moment_comment(proj_id, moment_id, comment_id):
-
     if not auth_consultant():
         abort(401)
 
-    if request.method=="DELETE":
+    if request.method == "DELETE":
         try:
             if not db_models.Project(proj_id).consultant_is_assigned(get_active_consultant()):
                 abort(401)
 
             c = db_models.MomentComment(comment_id)
 
-            if c.parent_moment_id != int(moment_id) or db_models.Moment(moment_id).parent_participant.project_id != int(proj_id):
+            if c.parent_moment_id != int(moment_id) or db_models.Moment(moment_id).parent_participant.project_id != int(
+                    proj_id):
                 abort(400)
 
             c.delete_from_db()
@@ -506,7 +508,6 @@ def api_project_moment_comment(proj_id, moment_id, comment_id):
 
 @app.route('/api/projects/<proj_id>/moments/<moment_id>', methods=['DELETE'])
 def api_projects_moments(proj_id, moment_id):
-
     if not auth_consultant():
         abort(401)
 
@@ -535,7 +536,6 @@ def api_projects_moments(proj_id, moment_id):
 
 @app.route('/api/projects/<proj_id>/moments/comments/', methods=['get'])
 def get_project_moment_comments(proj_id):
-
     if not auth_consultant():
         abort(401)
 
@@ -556,7 +556,6 @@ def get_project_moment_comments(proj_id):
 
 @app.route('/api/projects/<proj_id>/moments/<moment_id>/mark_download', methods=['post'])
 def set_project_moment_active_state(proj_id, moment_id):
-
     if not auth_consultant():
         abort(401)
 
@@ -569,19 +568,38 @@ def set_project_moment_active_state(proj_id, moment_id):
     except db_models.MomentNotFoundError:
         abort(404)
 
+
 ## Client routes
 
-@app.route('/api/clients/', methods=['GET'])
-def get_all_clients():
-
+@app.route('/api/clients/', methods=['GET', 'POST'])
+def api_clients():
     if not auth_consultant():
         abort(401)
 
-    return db_models.Client.get_all_clients_json()
+    if request.method == "GET":
+
+        return db_models.Client.get_all_clients_json()
+
+    elif request.method == "POST":
+
+        c = get_active_consultant()
+
+        if not c.admin:
+            return 'Only administrator users can add clients', 401
+
+        try:
+            new_client = db_models.Client.add_new_to_db(request.values['description'], request.values['contact_name'],
+                                                        request.values['contact_email'],
+                                                        request.values['contact_phone'])
+
+            return new_client.to_json()
+
+        except ValueError as e:
+            return str(e), 400
+
 
 @app.route('/api/clients/<int:client_id>', methods=['GET'])
 def get_client(client_id):
-
     if not auth_consultant():
         abort(401)
 
@@ -589,14 +607,60 @@ def get_client(client_id):
         return db_models.Client(client_id).to_json()
 
     except db_models.ClientNotFoundError:
-        return json.dumps({"error_code": 401, "error_text": "No client found with ID {}".format(client_id)}, indent=4), 404
+        return json.dumps({"error_code": 401, "error_text": "No client found with ID {}".format(client_id)},
+                          indent=4), 404
 
 
+@app.route('/api/clients/<client_id>', methods=['PUT'])
+def api_clients_update(client_id):
+
+    if not auth_consultant():
+        abort(401)
+
+    c = get_active_consultant()
+
+    if not c.admin:
+        return 'Only administrator users can modify clients', 401
+
+    try:
+        client = db_models.Client(client_id)
+        client.description = request.values['description']
+        client.contact_name = request.values['contact_name']
+        client.contact_email = request.values['contact_email']
+        client.contact_phone = request.values['contact_phone']
+
+        client.update_in_db()
+
+        return client.to_json()
+
+    except ValueError as e:
+        return str(e), 400
+
+
+@app.route('/api/clients/<client_id>', methods=['DELETE'])
+def api_clients_delete(client_id):
+    if not auth_consultant():
+        abort(401)
+
+    c = get_active_consultant()
+
+    if not c.admin:
+        return 'Only administrator users can delete clients', 401
+
+    try:
+        client = db_models.Client(client_id)
+        deleted_client = client.delete_from_db(c)
+        return deleted_client.to_json()
+
+    except db_models.ClientNotFoundError:
+        abort(404)
+
+    except db_models.ClientDeleteError as e:
+        return str(e), 400
 
 
 @app.route('/tests/participants/<p_id>/add_moment')
 def test_participant_add_moment(p_id):
-
     tests.add_moment_to_participant(p_id)
     m = db_models.Participant(p_id).moments[0]
     return json.dumps(m.to_dict(), indent=4)
@@ -604,15 +668,13 @@ def test_participant_add_moment(p_id):
 
 @app.route('/tests/projects/<proj_id>/add_moments')
 def test_projects_add_moments(proj_id):
-
     tests.add_moment_to_project(proj_id)
 
     moments = []
 
     for p in db_models.Project(proj_id).participants:
-
         participant_moments = db_models.Moment.get_moments_for_participant(p.id)['moments']
 
         moments.append([m.to_dict() for m in participant_moments])
 
-    return json.dumps(moments,indent=4)
+    return json.dumps(moments, indent=4)

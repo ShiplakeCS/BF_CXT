@@ -30,7 +30,7 @@
                 </div>
                 <div class="card-body collapse show" id="project_info">
 
-                    <h5><a href="/clients/{{ project.client.id }}/"
+                    <h5><a href="javascript:show_client_modal({{ project.client.id }}, 'view');"
                            class="text-body">{{ project.client.description }}</a> <span
                             class="small">{{ project.code }}</span></h5>
                     <span>{{ project.title }}</span>
@@ -100,7 +100,7 @@
                     <a class="card-link text-body" data-toggle="collapse" href="#participant_info">
                         Participants
                     </a>
-                    <button class="btn btn-outline-primary btn-sm float-right">+ Add</button>
+                    <a href="javascript:load_and_show_participant_modal({{ project.id }},null,'add')" class="btn btn-outline-primary btn-sm float-right">+ Add</a>
                 </div>
                 <div class="card-body collapse show" id="participant_info">
                     <!-- participant details added here by refresh_participants() -->

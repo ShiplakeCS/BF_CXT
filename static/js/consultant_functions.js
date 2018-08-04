@@ -208,13 +208,17 @@ function load_and_show_participant_modal(proj_id, p_id, mode = 'view') {
     var ending;
 
     if (mode == 'view') {
-        ending = '';
+        ending = p_id;
     }
     else if (mode == 'edit') {
-        ending = 'edit';
+        ending = p_id+'/edit';
     }
 
-    $('#participant_modal_placeholder').load('/projects/' + proj_id + '/participants/' + p_id + '/' + ending, null, function () {
+    else if (mode == 'add'){
+        ending = 'add';
+    }
+
+    $('#participant_modal_placeholder').load('/projects/' + proj_id + '/participants/' + ending, null, function () {
         $('#view_edit_participant_modal').modal('show');
     });
 
@@ -238,4 +242,26 @@ function delete_participant_from_project(project_id, participant_id) {
             $('#view_edit_participant_modal').find('.modal-body').append('<div class="alert alert-warning alert-dismissible mt-4"><button type="button" class="close" data-dismiss="alert">&times;</button>' + err_msg + '</div>');
         }
     });
+}
+
+function show_client_modal(client_id=null, mode){
+
+    var ending;
+
+    if (mode == 'add'){
+        ending = 'add';
+    }
+    else if (mode == 'edit'){
+        ending = client_id + '/edit'
+    }
+    else if (mode == 'view'){
+        ending = client_id + '/view'
+    }
+    $('#client_modal_placeholder').load('/clients/' + ending, null, function () {
+        $('#client_modal').modal('show');
+    });
+
+
+
+
 }

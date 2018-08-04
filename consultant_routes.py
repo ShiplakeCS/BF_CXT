@@ -84,6 +84,7 @@ def project_download(proj_id):
         return redirect('/projects/{}/'.format(proj_id)), 404
 
 
+
 ## Modal forms
 
 @app.route('/projects/<proj_id>/participants/<participant_id>/')
@@ -99,7 +100,7 @@ def project_participant_view(proj_id, participant_id):
     try:
         p = db_models.Participant(participant_id)
 
-        return render_template('dashboard/modals/add_edit_participant_form.html', participant=p.to_dict(), read_only=True)
+        return render_template('dashboard/modals/view_edit_participant_form.html', participant=p.to_dict(), read_only=True)
 
     except db_models.ParticipantNotFoundError:
         abort(404)
@@ -117,11 +118,22 @@ def project_participant_edit(proj_id, participant_id):
         p = db_models.Participant(participant_id)
         print(p.to_dict())
 
-        return render_template('dashboard/modals/add_edit_participant_form.html', participant=p.to_dict())
+        return render_template('dashboard/modals/view_edit_participant_form.html', participant=p.to_dict())
 
     except db_models.ParticipantNotFoundError:
         abort(404)
 
+@app.route('/projects/<proj_id>/participants/add')
+def project_participant_add(proj_id):
+
+    c = get_active_consultant()
+    if not c:
+        abort(401)
+
+    if not (c.admin or int(proj_id) in c.project_ids):
+        abort(401)
+
+    return render_template('dashboard/modals/view_edit_participant_form.html', proj_id = proj_id)
 
 
 @app.route('/projects/<proj_id>/participants/<participant_id>/edit/new/<i>')
@@ -169,6 +181,48 @@ def projects_participants_download(proj_id, participant_id):
 
     except db_models.ParticipantNotFoundError:
         abort(404)
+
+@app.route('/clients/add', methods=["GET"])
+def client_modal_add():
+
+    c = get_active_consultant()
+    if not c or not c.admin:
+        abort(401)
+
+    return render_template('/dashboard/modals/add_view_edit_client.html', consultant = c.to_dict())
+
+@app.route('/clients/<client_id>/edit', methods=["GET"])
+def client_modal_edit(client_id):
+
+    c = get_active_consultant()
+    if not c or not c.admin:
+        abort(401)
+
+    try:
+
+        client = db_models.Client(client_id)
+
+        return render_template('/dashboard/modals/add_view_edit_client.html', client = client.to_dict(), consultant = c.to_dict())
+
+    except db_models.ClientNotFoundError:
+        abort(404)
+
+@app.route('/clients/<client_id>/view', methods=['GET'])
+def client_modal_view(client_id):
+
+    c = get_active_consultant()
+    if not c:
+        abort(401)
+
+    try:
+
+        client = db_models.Client(client_id)
+
+        return render_template('/dashboard/modals/add_view_edit_client.html', client = client.to_dict(), read_only=True, consultant = c.to_dict())
+
+    except db_models.ClientNotFoundError:
+        abort(404)
+
 
 ## Login and logout
 
