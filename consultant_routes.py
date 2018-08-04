@@ -78,7 +78,7 @@ def project_download(proj_id):
     try:
         p = db_models.Project(proj_id)
         download_path = p.generate_download_bundle()
-        return send_file(download_path, as_attachment=True)
+        return send_file(download_path, as_attachment=True, mimetype='application/zip')
 
     except db_models.ProjectNotFound:
         return redirect('/projects/{}/'.format(proj_id)), 404
@@ -98,7 +98,6 @@ def project_participant_view(proj_id, participant_id):
 
     try:
         p = db_models.Participant(participant_id)
-        print(p.to_dict())
 
         return render_template('dashboard/modals/add_edit_participant_form.html', participant=p.to_dict(), read_only=True)
 
@@ -166,7 +165,7 @@ def projects_participants_download(proj_id, participant_id):
 
         download_file = p.generate_download_bundle(ignore_moment_flag=True, participant_zip=True)
 
-        return send_file(download_file, as_attachment=True)
+        return send_file(download_file, as_attachment=True, mimetype='application/zip')
 
     except db_models.ParticipantNotFoundError:
         abort(404)

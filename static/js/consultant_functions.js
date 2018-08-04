@@ -154,9 +154,9 @@ function render_participant_details(p) {
     var activity = new Date(p.last_activity_ts + "Z");
 
     html += '<div class="row small">';
-    html += '<div class="col-3">Internal ID: ' + p.id + '</div>';
+    html += '<div class="col">Internal ID: ' + p.id + '</div>';
     html += '<div class="col">Last activity: ' + activity.toLocaleDateString() + ' ' + String(activity.getHours()).padStart(2, "0") + ':' + String(activity.getMinutes()).padStart(2, "0") + '</div>';
-    html += '<div class="col-2"><a href="/projects/'+p.project_id+'/participants/'+ p.id+'" class="text-body">View/Edit</a></div>';
+    html += '<div class="col"><a href="javascript:load_and_show_participant_modal(' + p.project_id + ',' + p.id + ')" class="text-body float-right">View/Edit</a></div>';
     html += '</div></div>';
 
     return html;
@@ -164,17 +164,25 @@ function render_participant_details(p) {
 
 function set_participant_active_state(p_id, state) {
 
+    console.log('running set_participant_active_state');
+
     $.ajax({
         url: '/api/participants/' + p_id,
         method: 'put',
         data: {active: state},
         success: function (result, status, xhr) {
 
+            console.log(result);
+
             if (JSON.parse(result).active) {
                 $('#participant_' + p_id + '_active_badge').replaceWith('<a id="participant_' + p_id + '_active_badge" class="badge badge-success ml-2 align-top" href="javascript:set_participant_active_state(' + p_id + ', \'false\');">Active</a>');
+                // Update modal badge (shouldn't matter if not showing)
+                $('#view_edit_participant_modal').find('#participant_' + p_id + '_active_badge').replaceWith('<a id="participant_' + p_id + '_active_badge" class="badge badge-success ml-2" href="javascript:set_participant_active_state(' + p_id + ', \'false\');">Active</a>');
             }
             else {
                 $('#participant_' + p_id + '_active_badge').replaceWith('<a id="participant_' + p_id + '_active_badge" class="badge badge-secondary ml-2 align-top" href="javascript:set_participant_active_state(' + p_id + ', \'true\');">Inactive</a>');
+                // Update modal badge
+                $('#view_edit_participant_modal').find('#participant_' + p_id + '_active_badge').replaceWith('<a id="participant_' + p_id + '_active_badge" class="badge badge-secondary ml-2" href="javascript:set_participant_active_state(' + p_id + ', \'true\');">Inactive</a>');
             }
         }
     });
@@ -193,4 +201,41 @@ function scroll_to_item(moment_id = null, comment_id = null) {
         $('#moments_frame').contents().find('#moment_' + moment_id)[0].scrollIntoView({behavior: 'smooth'});
     }
 
+}
+
+function load_and_show_participant_modal(proj_id, p_id, mode = 'view') {
+
+    var ending;
+
+    if (mode == 'view') {
+        ending = '';
+    }
+    else if (mode == 'edit') {
+        ending = 'edit';
+    }
+
+    $('#participant_modal_placeholder').load('/projects/' + proj_id + '/participants/' + p_id + '/' + ending, null, function () {
+        $('#view_edit_participant_modal').modal('show');
+    });
+
+}
+
+function delete_participant_from_project(project_id, participant_id) {
+
+    $.ajax({
+        url: '/api/projects/' + project_id + '/participants/' + participant_id,
+        method: 'delete',
+        success: function (data, status, xhr) {
+            // Show dialogue, close window
+            deleted_p = JSON.parse(data);
+            alert(deleted_p.display_name + " successfully deleted.");
+            $('#view_edit_participant_modal').modal('hide');
+            window.location.reload();
+        },
+        error: function (xhr, status, error) {
+            // show error message in modal
+            var err_msg = xhr.responseText;
+            $('#view_edit_participant_modal').find('.modal-body').append('<div class="alert alert-warning alert-dismissible mt-4"><button type="button" class="close" data-dismiss="alert">&times;</button>' + err_msg + '</div>');
+        }
+    });
 }

@@ -702,10 +702,11 @@ class Participant:
         db.commit()
         return Participant(self.id)
 
-    def delete_from_db(self, admin_consultant: Consultant):
+    def delete_from_db(self, consultant: Consultant):
 
-        if not admin_consultant.admin:
-            raise ConsultantNotAdminError("Only administrators can delete participants from the database.")
+
+        if not self.project_id in consultant.project_ids:
+            raise ConsultantNotAssignedToProjectError
 
         if self.active:
             raise DeleteActiveParticipantError("Cannot delete active participant. Deactivate before deleting.")

@@ -1,3 +1,4 @@
+<!--
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,20 +13,22 @@
           integrity="sha384-hWVjflwFxL6sNzntih27bfxkr27PmbbK/iSvJ+a4+0owXq79v+lsFkW54bOGbiDQ" crossorigin="anonymous">
 </head>
 <body>
+-->
 <div class="container">
 
     <script>
         function delete_participant(e) {
             e.preventDefault();
-            if (confirm("Are you sure you wish to delete this participant?\n\nAll of their data will be permanently deleted and unrecoverable.\nIf you simply wish to prevent participants from accessing this research you can set their status to inactive.\n\nPress OK to delete this participant.")) {
-                //
+
+            if (confirm("Are you sure you wish to delete this participant?\n\nAll of their data will be permanently deleted and unrecoverable.\nIf you simply wish to prevent participants from accessing this research you can set their status to inactive.\n\nYou can also download all of this participant's data before deleting it by clicking on the 'Download participant data' link within the View/Edit Participant form.\n\nIf you are still sure that you wish to delete this participant, please press OK, otherwise Cancel to go back.")) {
+                delete_participant_from_project({{ participant.project_id }}, {{ participant.id }});
             }
         }
 
         function cancel_changes(e) {
             e.preventDefault();
             if (confirm("Are you sure you wish to discard your changes?")) {
-                $('#edit_participant_modal').modal("hide");
+                $('#view_edit_participant_modal').modal("hide");
             }
         }
 
@@ -42,7 +45,8 @@
                     },
                     success: function () {
                         alert("Participant updated!");
-                        $('#edit_participant_modal').modal("hide");
+                        $('#view_edit_participant_modal').modal("hide");
+                        window.location.reload();
                     }
                 });
             {% endif %}
@@ -76,9 +80,6 @@
             {% endif %}
         }
 
-        function set_participant_active_state(state) {
-            //
-        }
 
         function get_new_url(e) {
             e.preventDefault();
@@ -105,18 +106,18 @@
             $('#pin_button').click(get_new_pin);
             $('#new_url_link').click(get_new_url);
             add_url_domain();
-            $('.modal').modal('show');
+            //$('#view_edit_participant_modal').modal('show');
         })
     </script>
 
 <!--
-    <button type="button" class="btn btn-link" data-toggle="modal" data-target="#edit_participant_modal">
+    <button type="button" class="btn btn-link" data-toggle="modal" data-target="#view_edit_participant_modal">
         Edit participant
     </button>
 -->
 
     <!-- The Modal -->
-    <div class="modal" id="edit_participant_modal" data-backdrop="static" data-keyboard="false">
+    <div class="modal" id="view_edit_participant_modal" data-backdrop="static" data-keyboard="false">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
 
@@ -149,14 +150,14 @@
                                     <div class="float-right">Status:
 
                                         {% if participant.active %}
-                                            <a id="participant_active_badge"
+                                            <a id="participant_{{ participant.id }}_active_badge"
                                                class="badge badge-success text-white ml-2" {% if not read_only %}
-                                               href="javascript:set_participant_active_state(false)"
+                                               href="javascript:set_participant_active_state({{ participant.id}}, 'false')"
                                                 {% endif %}>Active</a>
                                         {% else %}
-                                            <a id="participant_active_badge"
+                                            <a id="participant_{{ participant.id }}_active_badge"
                                                class="badge badge-secondary text-white ml-2" {% if not read_only %}
-                                               href="javascript:set_participant_active_state(true)"{% endif %}>Inactive</a>
+                                               href="javascript:set_participant_active_state({{ participant.id}}, 'true')"{% endif %}>Inactive</a>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -237,10 +238,10 @@
                                class="btn btn-primary">
                         {% else %}
                             {% if participant %}
-                                <a href="/projects/{{ participant.project_id }}/participants/{{ participant.id }}/edit"
+                                <a href="javascript:$('#view_edit_participant_modal').modal('hide');load_and_show_participant_modal({{ participant.project_id }},{{ participant.id }},'edit')"
                                    id="edit_button" class="btn btn-secondary">Edit</a>
                             {% endif %}
-                        <input type="button" value="Done" id="done_button" onclick="$('#edit_participant_modal').modal('hide')"
+                        <input type="button" value="Done" id="done_button" onclick="$('#view_edit_participant_modal').modal('hide')"
                                class="btn btn-primary">
 
                         {% endif %}

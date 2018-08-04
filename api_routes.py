@@ -383,7 +383,8 @@ def get_project_participants(project_id):
 
         return json.dumps({"error_code":"201", "error_text":"No project found with ID {}".format(project_id)}), 404
 
-@app.route('/api/projects/<project_id>/participants/<participant_id>', methods=["PUT"])
+
+@app.route('/api/projects/<project_id>/participants/<participant_id>', methods=["PUT", "GET", "DELETE"])
 def api_projects_participant(project_id, participant_id):
 
     if not auth_consultant():
@@ -391,23 +392,43 @@ def api_projects_participant(project_id, participant_id):
 
     c = get_active_consultant()
 
-    if not db_models.Project(project_id).consultant_is_assigned(c):
-        abort(401)
-
     try:
-        p = db_models.Participant(participant_id)
-        if p.project_id != int(project_id):
-            abort(401)
-        p.display_name = request.values['display_name']
-        p.description = request.values['description']
-        p.update_in_db()
-        return p.to_json()
+
+        if request.method == "PUT":
+
+            if not db_models.Project(project_id).consultant_is_assigned(c):
+                return 'Only consultants assigned to this project can update its participants.', 401
+
+            p = db_models.Participant(participant_id)
+            if p.project_id != int(project_id):
+                abort(401)
+            p.display_name = request.values['display_name']
+            p.description = request.values['description']
+            p.update_in_db()
+            return p.to_json()
+
+        elif request.method == "GET":
+
+            return db_models.Participant(participant_id).to_json()
+
+        elif request.method == "DELETE":
+
+            p = db_models.Participant(participant_id)
+            p.delete_from_db(c)
+            return p.to_json()
+
+    except db_models.DeleteActiveParticipantError:
+        return 'You cannot delete an active participant. Please deactivate this participant before deleting.', 400
+
+    except db_models.ConsultantNotAssignedToProjectError:
+        return 'Only those consultants that are assigned to a project can delete its participants.', 401
 
     except db_models.ParticipantNotFoundError:
         abort(404)
 
     except Exception as e:
         return str(e), 400
+
 
 @app.route('/api/projects/<proj_id>/moments', methods=['GET'])
 def get_project_moments(proj_id):
