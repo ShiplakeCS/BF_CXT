@@ -1,6 +1,6 @@
 from flask import session, abort, request, send_file, redirect, url_for, send_from_directory
 from cxt_app import app, db_models, tests
-import json, os, shutil
+import json, os, shutil, datetime
 from werkzeug.utils import secure_filename
 
 
@@ -66,7 +66,7 @@ def api_consultants():
 
     elif request.method == "POST":
         try:
-            consultant = db_models.Consultant.add_new_to_db(request.values['email'], request.values['reset_password'], request.values['display_name'], request.values['first_name'], request.values['last_name'], bool(request.values['active']), bool(request.values['admin']))
+            consultant = db_models.Consultant.add_new_to_db(request.values['email'], request.values['reset_password'], request.values['display_name'], request.values['first_name'], request.values['last_name'], request.values['active']=='true', request.values['admin']=='true')
             return consultant.to_json()
 
         except Exception as e:
@@ -345,24 +345,128 @@ def add_participant_moment_comment(p_id, moment_id):
 
 ## Project routes
 
-@app.route('/api/projects/', methods=['GET'])
-def get_projects():
+@app.route('/api/projects/', methods=['GET', 'POST'])
+def api_projects():
+
     if not auth_consultant():
         abort(401)
 
-    return db_models.Project.get_all_projects_json()
+    if request.method == "GET":
+
+        return db_models.Project.get_all_projects_json()
+
+    elif request.method == "POST":
+
+        # Add a project to DB
+        start_date = []
+        for s in request.values['start_ts'].split('-'):
+            start_date.append(int(s))
+
+        start_date_object = datetime.datetime(start_date[0], start_date[1], start_date[2])
+
+        try:
+
+            p = db_models.Project.add_new_to_db(request.values['code'], int(request.values['client']), request.values['title'], 1, request.values['active']=='true', start_date_object)
+
+            c_list = request.values['consultants'].split("consultants=")
+            c_ids = []
+            for c in c_list:
+                if c != '':
+                    c = c.rstrip('&')
+                    c_ids.append(int(c))
+
+            for id in c_ids:
+                c = db_models.Consultant(id)
+
+                p.assign_consultant_to_project(c)
+
+            p.add_multiple_participants(int(request.values['participants']))
+
+            return p.to_json()
+
+        except db_models.ProjectBFCodeError as e:
+            return str(e), 400
+
+        except db_models.ConsultantNotFoundError as e:
+            return str(e), 400
+
+        except Exception as e:
+
+            return str(e), 400
 
 
-@app.route('/api/projects/<int:project_id>', methods=['GET'])
+
+@app.route('/api/projects/<int:project_id>', methods=['GET', 'PUT', 'DELETE'])
 def get_project(project_id):
     if not auth_consultant():
         abort(401)
 
     try:
-        return db_models.Project(project_id).to_json()
+        p = db_models.Project(project_id)
 
-    except db_models.ProjectNotFound:
-        return json.dumps({"error_code": 201, "error_text": "No project found with ID {}".format(project_id)}), 404
+        if request.method == "GET":
+            return p.to_json()
+
+        elif request.method == "PUT":
+
+            # Update project's data
+            start_date = []
+            for s in request.values['start_ts'].split('-'):
+                start_date.append(int(s))
+
+            start_date_object = datetime.datetime(start_date[0], start_date[1], start_date[2])
+
+            if request.values['code'] != p.bf_code:
+                p.update_bf_code(request.values['code'], get_active_consultant())
+            p.title = request.values['title']
+
+            if request.values['active'] == 'true':
+                p.activate(get_active_consultant())
+            elif request.values['active'] == 'false':
+                p.deactivate(get_active_consultant())
+
+            p.client_id = int(request.values['client'])
+            p.start_ts = start_date_object
+
+            # If the consultant assignments have been provided, then need to check for any consultant IDs not already assigned and add them, also check if there are assigned consultants to remove. Might be best to simply remove all consultants and reassign.
+
+            c_ids = []
+            for id in request.values['consultants'].split("consultants="):
+                if id != '':
+                    id = id.rstrip('&')
+                    c_ids.append(int(id))
+
+            if len(c_ids) > 0:
+
+                for c in p.consultants:
+                    p.remove_consultant_from_project(c, get_active_consultant())
+
+                for id in c_ids:
+                    p.assign_consultant_to_project(db_models.Consultant(id))
+
+            p.update_last_activity_ts()
+            p.update_in_db()
+
+            return p.to_json()
+
+        if request.method == "DELETE":
+            p.delete_from_db(get_active_consultant())
+            return p.to_json()
+
+    except db_models.ProjectBFCodeError as e:
+        return str(e), 400
+
+    except db_models.ConsultantNotAdminError as e:
+        return str(e), 401
+
+    except db_models.ProjectNotFound as e:
+        return str(e), 404
+
+    except db_models.DeleteActiveProjectError as e:
+        return str(e), 400
+
+    except Exception as e:
+        return str(e), 400
 
 
 @app.route('/api/projects/<int:project_id>/client', methods=['GET'])

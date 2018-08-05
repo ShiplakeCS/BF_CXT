@@ -1,3 +1,4 @@
+<!--
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -13,7 +14,7 @@
 </head>
 <body>
 
-
+-->
 <div class="container">
 
     <script>
@@ -25,11 +26,28 @@
 
                     var code_confirm = prompt("Please enter this project's code in order to continue deleting it");
 
-                    if (code_confirm == {{ project.code }}) {
-                        //delete code
+                    if (code_confirm == '{{ project.code }}') {
+                        $.ajax({
+                            url: '/api/projects/' + {{ project.id }},
+                            method: 'delete',
+                            success: function (response, status, xhr) {
+                                alert('Project deleted');
+                                $('#project_modal').modal('hide');
+                                window.location.reload();
+                            },
+                            error: function (xhr, status, error) {
+                                // show error message in modal
+                                var err_msg = xhr.responseText;
+                                $('#project_modal').find('.modal-body').append('<div class="alert alert-warning alert-dismissible mt-4"><button type="button" class="close" data-dismiss="alert">&times;</button>' + err_msg + '</div>');
+                            }
+                        })
+                    }
+                    else {
+                        alert('The project code that you entered was incorrect.');
                     }
 
                 }
+
             }
         {% endif %}
 
@@ -44,34 +62,79 @@
 
         function save_changes(e) {
             e.preventDefault();
-            {% if project %}
-                $.ajax({
-                    url: '/api/projects/{{ project.id }}',
-                    method: 'put',
-                    data: {
-                        //
-                    },
-                    success: function () {
-                        alert("Project updated!");
-                        $('#project_modal').modal("hide");
-                        window.location.reload();
-                    }
-                });
-            {% else %}
-                $.ajax({
-                    url: '/api/projects/',
-                    method: 'post',
-                    data: {
-                        //
-                    },
-                    success: function (data, status, xhr) {
-                        var added_participant = JSON.parse(data);
-                        alert("Project added!");
-                        $('#project_modal').modal("hide");
-                    }
-                });
 
-            {% endif %}
+            // validate input before sending server
+
+            if ($('#title').val() == '') {
+                $('#project_modal').find('.modal-body').append('<div class="alert alert-warning alert-dismissible mt-4"><button type="button" class="close" data-dismiss="alert">&times;</button>You must provide a title for the project before you can add a project.</div>');
+            }
+            else if ($('#code').val() == '') {
+                $('#project_modal').find('.modal-body').append('<div class="alert alert-warning alert-dismissible mt-4"><button type="button" class="close" data-dismiss="alert">&times;</button>You must provide an internal project code (BF code) before you can add a project.</div>');
+            }
+            else if ($('#client_list').val() == '0') {
+                $('#project_modal').find('.modal-body').append('<div class="alert alert-warning alert-dismissible mt-4"><button type="button" class="close" data-dismiss="alert">&times;</button>You must select a client before you can add a project.</div>');
+            }
+            else if ($('#start_date').val() == '') {
+                $('#project_modal').find('.modal-body').append('<div class="alert alert-warning alert-dismissible mt-4"><button type="button" class="close" data-dismiss="alert">&times;</button>You must select a start date before you can add a project.</div>');
+            }
+
+            else {
+                {% if project %}
+                    $.ajax({
+                        url: '/api/projects/{{ project.id }}',
+                        method: 'put',
+                        data: {
+                            code: $('#code').val(),
+                            client: $('#client_list').val(),
+                            title: $('#title').val(),
+                            active: $('#active').prop('checked'),
+                            start_ts: $('#start_date').val(),
+                            consultants: $('#consultant_list').serialize(),
+                            participants: $('#participants').val()
+                        },
+                        success: function () {
+                            alert("Project updated!");
+                            $('#project_modal').modal("hide");
+                            window.location.reload();
+                        },
+                        error: function (xhr, status, error) {
+                            // show error message in modal
+                            var err_msg = xhr.responseText;
+                            $('#project_modal').find('.modal-body').append('<div class="alert alert-warning alert-dismissible mt-4"><button type="button" class="close" data-dismiss="alert">&times;</button>' + err_msg + '</div>');
+                        }
+                    });
+                {% else %}
+
+                    $.ajax({
+                        url: '/api/projects/',
+                        method: 'post',
+                        data: {
+                            code: $('#code').val(),
+                            client: $('#client_list').val(),
+                            title: $('#title').val(),
+                            active: $('#active').prop('checked'),
+                            start_ts: $('#start_date').val(),
+                            consultants: $('#consultant_list').serialize(),
+                            participants: $('#participants').val()
+                        },
+                        success: function (data, status, xhr) {
+                            var added_participant = JSON.parse(data);
+                            console.log(added_participant);
+                            alert("Project added!");
+                            $('#project_modal').modal("hide");
+                            window.location.reload();
+                        },
+                        error: function (xhr, status, error) {
+                            // show error message in modal
+                            var err_msg = xhr.responseText;
+                            $('#project_modal').find('.modal-body').append('<div class="alert alert-warning alert-dismissible mt-4"><button type="button" class="close" data-dismiss="alert">&times;</button>' + err_msg + '</div>');
+
+                        }
+                    });
+
+                {% endif %}
+
+            }
         }
 
         function load_client_list(selected_id) {
@@ -128,7 +191,7 @@
                 $('#delete_project').click(delete_project);
             {% endif %}
             $('#cancel_button').click(cancel_changes);
-            {% if active_consultant.admin %}
+            {% if active_consultant %}
                 $('#save_button').click(save_changes);
             {% endif %}
             load_client_list({% if project %}{{ project.client.id }}{% endif %});
@@ -136,7 +199,7 @@
             {% if project %}
                 set_project_start_date('{{ project.start_ts }}');
             {% endif %}
-            $('#project_modal').modal('show');
+            //$('#project_modal').modal('show');
         })
     </script>
 
@@ -152,7 +215,7 @@
                 </div>
 
                 <!-- Modal body -->
-                <form>
+                <form id="project_form">
                     <div class="modal-body">
 
                         <div class="row mb-2 text-muted">
@@ -238,11 +301,10 @@
                                    class="btn btn-danger mr-auto">
                         {% endif %}
 
-                            <input type="button" value="Cancel changes" id="cancel_button"
-                                   class="btn btn-secondary mr-2">
-                            <input type="submit" value="Save project" id="save_button"
-                                   class="btn btn-primary">
-
+                        <input type="button" value="Cancel changes" id="cancel_button"
+                               class="btn btn-secondary mr-2">
+                        <input type="submit" value="Save project" id="save_button"
+                               class="btn btn-primary">
 
 
                     </div>

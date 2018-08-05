@@ -38,6 +38,52 @@ def get_active_consultant():
 
 ## Project pages
 
+@app.route('/consultants/')
+def consultants_table_page():
+
+    c = get_active_consultant()
+
+    if not c:
+        return redirect(url_for('consultant_login'))
+    if not c.admin:
+        abort(401)
+
+    all_consultants = db_models.Consultant.get_all_consultants_dicts()
+
+    return render_template('dashboard/consultants_table.html', consultants=all_consultants, consultant=c.to_dict(), page_data=get_page_data(), active_projects=c.get_active_project_details())
+
+
+@app.route('/clients/')
+def clients_table_page():
+
+    c = get_active_consultant()
+
+    if not c:
+        return redirect(url_for('consultant_login'))
+
+    all_clients = db_models.Client.get_all_clients_dicts()
+
+    return render_template('dashboard/clients_table.html', clients=all_clients, consultant=c.to_dict(), page_data=get_page_data(), active_projects=c.get_active_project_details())
+
+
+@app.route('/projects/')
+def projects_table_page():
+
+    c = get_active_consultant()
+    if not c:
+        return redirect(url_for('consultant_login'))
+
+    all_projects = db_models.Project.get_all_projects_dicts()
+
+    for p in all_projects:
+        cs = []
+        for consultant in p['consultants']:
+            cs.append(db_models.Consultant(consultant).to_dict())
+        p['consultants'] = cs
+        p['num_participants'] = len(p['participants'])
+
+    return render_template('dashboard/projects_table.html', projects=all_projects, active_projects=c.get_active_project_details(), consultant=c.to_dict(), page_data=get_page_data())
+
 @app.route('/projects/<proj_id>/')
 def project_page(proj_id):
     c = get_active_consultant()
@@ -242,7 +288,7 @@ def consultant_modal_edit(consultant_id):
 def consultant_modal_view(consultant_id):
 
     c = get_active_consultant()
-    if not c or not c.admin:
+    if not c:
         abort(401)
 
     try:
@@ -268,7 +314,7 @@ def consultants_modal_add():
 def project_modal_add():
 
     c = get_active_consultant()
-    if not c or not c.admin:
+    if not c: #or not c.admin:
         abort(401)
 
     return render_template('dashboard/modals/add_edit_project.html', active_consultant=c.to_dict())

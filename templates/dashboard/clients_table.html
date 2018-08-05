@@ -1,0 +1,50 @@
+{% extends 'dashboard/base.html' %}
+
+{% block breadcrumb_links %}
+    <li class="breadcrumb-item active">Clients</li>
+{% endblock %}
+
+{% block page_content %}
+
+    <div class="col">
+
+        <h2 class="mb-4">All clients
+            {% if consultant.admin %}
+            <button class="btn btn-outline-primary btn-sm ml-4" onclick="show_client_modal(null, 'add')">+ Add
+                client
+            </button>
+            {% endif %}
+        </h2>
+
+        {% for c in clients %}
+            <div class="project mb-4">
+                <div class="row">
+                    <div class="col">
+                        <div class="row">
+                            <div class="col"><h4>{{ c.description }}
+                                {% if consultant.admin %}<a
+                                    href='javascript:show_client_modal({{ c.id }}, "view")' class="btn btn-link btn-sm ml-4">View/Edit
+                                client</a>
+                            {% endif %}</h4></div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col">Contact name: {{ c.contact_name }}</div>
+                            <div class="col">Contact email: {{ c.contact_email }}</div>
+                            <div class="col">Contact phone: {{ c.contact_phone }}</div>
+                        </div>
+
+
+                    </div>
+
+                </div>
+            </div>
+            {% if loop.index < clients|length %}
+                <hr>
+            {% endif %}
+
+        {% endfor %}
+
+    </div>
+
+
+{% endblock %}

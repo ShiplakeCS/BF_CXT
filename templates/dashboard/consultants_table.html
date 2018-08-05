@@ -1,0 +1,53 @@
+{% extends 'dashboard/base.html' %}
+
+{% block breadcrumb_links %}
+    <li class="breadcrumb-item active">Consultants</li>
+{% endblock %}
+
+{% block page_content %}
+
+    <div class="col">
+
+        <h2 class="mb-4">All consultants (users)
+            <button class="btn btn-outline-primary btn-sm ml-4" onclick="show_consultant_modal(null, 'add')">+ Add
+                consultant
+            </button>
+        </h2>
+
+        {% for c in consultants %}
+            <div class="project mb-4">
+                <div class="row">
+                    <div class="col">
+                        <div class="row">
+                            <div class="col"><h4>{{ c.first_name }} {{ c.last_name }} <span
+                                    class="small">({{ c.display_name }})</span> <a
+                                    href='javascript:show_consultant_modal({{ c.id }}, "view")'
+                                    class="btn btn-link btn-sm ml-2">Edit
+                                consultant</a></h4></div>
+                        </div>
+                        <div class="row">
+                            <div class="col">Email: {{ c.email }}</div>
+                            <div class="col">{% if c.active %}
+                                <span class="badge badge-success">Active</span>{% else %} <span class="badge badge-secondary">Inactive</span>{% endif %}</div>
+
+                            <div class="col">{% if c.admin %}
+                                <span class="badge badge-info">Administrator</span>{% else %}Standard
+                                consultant{% endif %}</div>
+
+                        </div>
+
+
+                    </div>
+
+                </div>
+            </div>
+            {% if loop.index < consultants|length %}
+                <hr>
+            {% endif %}
+
+        {% endfor %}
+
+    </div>
+
+
+{% endblock %}

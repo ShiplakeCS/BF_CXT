@@ -104,7 +104,9 @@
 
 
         $(function () {
+            {% if client %}
             $('#delete_client').click(delete_client);
+            {% endif %}
             $('#cancel_button').click(cancel_changes);
             $('#save_button').click(save_changes);
             //$('#client_modal').modal('show');

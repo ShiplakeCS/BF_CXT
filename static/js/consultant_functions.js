@@ -137,7 +137,7 @@ function render_participant_details(p) {
     var html = '<div id="participant_' + p.id + '_details">';
     // Header
     html += '<div id="participant_' + p.id + '_header" class="mb-2">';
-    html += '<h6 style="margin-bottom: 0px;">' + p.within_project_number + ' - ' + p.display_name;
+    html += '<h6 style="margin-bottom: 0px;"><a href="javascript:load_and_show_participant_modal(' + p.project_id + ',' + p.id + ')" class="text-body">' + p.display_name + '</a>';
     html += '<div id="participant_' + p.id + '_header_info" class="d-inline-block"><span class="badge badge-pill badge-info ml-2 align-top">' + p.moments_count + '</span>';
 
     if (p.active) {
@@ -156,7 +156,7 @@ function render_participant_details(p) {
     html += '<div class="row small">';
     html += '<div class="col">Internal ID: ' + p.id + '</div>';
     html += '<div class="col">Last activity: ' + activity.toLocaleDateString() + ' ' + String(activity.getHours()).padStart(2, "0") + ':' + String(activity.getMinutes()).padStart(2, "0") + '</div>';
-    html += '<div class="col"><a href="javascript:load_and_show_participant_modal(' + p.project_id + ',' + p.id + ')" class="text-body float-right">View/Edit</a></div>';
+
     html += '</div></div>';
 
     return html;
@@ -279,5 +279,22 @@ function show_client_modal(client_id=null, mode){
         $('#consultant_modal').modal('show');
     });
 
+}
 
+function show_project_modal(project_id=null, mode){
+
+    var ending;
+
+    console.log('show project modal triggered');
+
+    if (mode == 'add'){
+        ending = 'add';
+    }
+    else if (mode == 'edit'){
+        ending = project_id + '/edit';
+    }
+
+    $('#project_modal_placeholder').load('/projects/' + ending, null, function () {
+        $('#project_modal').modal('show');
+    });
 }

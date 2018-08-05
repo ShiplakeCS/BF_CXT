@@ -24,9 +24,11 @@
                     <a class="card-link text-body" data-toggle="collapse" href="#project_info">
                         Project information
                     </a>
+                    {% if consultant.admin %}
 
-                    <a href="/projects/{{ project.id }}/edit"
+                    <a href="javascript:show_project_modal({{ project.id }}, 'edit')"
                        class="btn btn-sm btn-outline-primary float-right">Edit</a>
+                    {% endif %}
                 </div>
                 <div class="card-body collapse show" id="project_info">
 

@@ -1,0 +1,150 @@
+{% extends 'dashboard/base.html' %}
+
+{% block breadcrumb_links %}
+    <li class="breadcrumb-item active">Projects</li>
+{% endblock %}
+
+{% block page_content %}
+
+    <script>
+
+        function convert_date_string(date_string) {
+
+            var d = new Date(date_string + "Z");
+
+            return d.toLocaleDateString() + " " +
+                String(d.getHours()).padStart(2, "0") + ":" +
+                String(d.getMinutes()).padStart(2, "0");
+
+        }
+
+
+        $(function () {
+            var elements = $('.date_ts');
+            for (i = 0; i < elements.length; i++) {
+                elements[i].innerHTML = convert_date_string(elements[i].innerHTML);
+            }
+        })
+
+    </script>
+
+    <div class="col">
+<!--
+        {% if active_projects %}
+            <h2 class="mb-4">My active projects</h2>
+
+            {% for p in active_projects %}
+
+                <div class="project mb-4">
+                    <div class="row">
+                        <div class="col">
+                            <div class="row">
+                                <div class="col"><h4>{{ p.client }} <span class="small">{{ p.code }}</span><a
+                                        href='/projects/{{ p.id }}/' class="btn btn-outline-primary btn-sm ml-4">View
+                                    project</a></h4></div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col">Project description: {{ p.title }}</div>
+                            </div>
+                            <div class="row">
+                                <div class="col">
+                                    <span class="mr-2">Assigned consultants:</span>
+                                    {% for c in p.consultants %}
+                                        <a href="javascript:show_consultant_modal({{ c.id }}, 'view')"
+                                           class="mr-3">{{ c.first_name }} {{ c.last_name }}</a>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col">
+                                    Number of participants: {{ p.num_participants }}
+                                </div>
+                                <div class="col">
+                                    Start Date: <span class="date_ts">{{ p.start_ts }}</span>
+                                </div>
+                                <div class="col">
+                                    Last activity: <span class="date_ts">{{ p.last_activity_ts }}</span>
+                                </div>
+                                <div class="col">
+                                    {% if p.active %}
+                                        <span class="badge badge-success">Active project</span>
+                                    {% else %}
+                                        <span class="badge badge-secondary">Archived project</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                        </div>
+
+                    </div>
+                </div>
+                {% if loop.index < projects|length %}
+                    <hr>
+                {% endif %}
+
+
+            {% endfor %}
+
+        {% endif %}
+-->
+        <h2 class="mb-4">All projects
+            <button class="btn btn-outline-primary btn-sm ml-4" onclick="show_project_modal(null, 'add')">+ Add
+                project
+            </button>
+        </h2>
+
+        {% for p in projects %}
+            <div class="project mb-4">
+                <div class="row">
+                    <div class="col">
+                        <div class="row">
+                            <div class="col"><h4>{{ p.client.description }} <span class="small">{{ p.code }}</span><a
+                                    href='/projects/{{ p.id }}/' class="btn btn-link btn-sm ml-4">View
+                                project</a></h4></div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col">Project description: {{ p.title }}</div>
+                        </div>
+                        <div class="row mb-2 text-muted">
+                            <div class="col">
+                                <span class="mr-2">Assigned consultants:</span>
+
+                                {% for c in p.consultants %}
+                                    <a href="javascript:show_consultant_modal({{ c.id }}, 'view')"
+                                       class="mr-3 text-body">{{ c.first_name }} {{ c.last_name }}</a>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="row text-muted">
+                            <div class="col">
+                                Number of participants: {{ p.num_participants }}
+                            </div>
+                            <div class="col">
+                                Start Date: <span class="date_ts">{{ p.start_ts }}</span>
+                            </div>
+                            <div class="col">
+                                Last activity: <span class="date_ts">{{ p.last_activity_ts }}</span>
+                            </div>
+                            <div class="col">
+                                {% if p.active %}
+                                    <span class="badge badge-success">Active project</span>
+                                {% else %}
+                                    <span class="badge badge-secondary">Archived project</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+            </div>
+            {% if loop.index < projects|length %}
+                <hr>
+            {% endif %}
+
+        {% endfor %}
+
+    </div>
+
+
+{% endblock %}

@@ -68,6 +68,8 @@ class DeleteAllAdminConsultantError(Exception):
 class DeleteSelfAdminConsultantError(Exception):
     pass
 
+class DeleteConsultantError(Exception):
+    pass
 
 class Consultant:
 
@@ -215,6 +217,10 @@ class Consultant:
                 raise DeleteAllAdminConsultantError("Cannot delete consultant {} as doing so would leave no admin "
                                                     "consultants!".format(self.id))
 
+        # Check if consultant is still associated with projects, if so, no good
+        if len(self.project_ids)>0:
+            raise DeleteConsultantError("Consultants cannot be deleted whilst still assigned to projects.")
+
         # Proceed to remove consultant from database
 
         db.execute("DELETE FROM Consultant WHERE id=?", [str(self.id)])
@@ -301,7 +307,7 @@ class Consultant:
         for id in self.project_ids:
             p = Project(id)
             if p.active:
-                ps.append({'id':p.id, 'code':p.bf_code, 'client':p.client.description})
+                ps.append({'id':p.id, 'code':p.bf_code, 'client':p.client.description, 'title':p.title, 'consultants':[c.to_dict() for c in p.consultants], 'start_ts':p.start_ts, 'last_activity_ts':p.last_activity_ts, 'active':p.active, 'num_participants': len(p.participants)})
 
         return ps
 
@@ -338,6 +344,16 @@ class Consultant:
             consultant_list.append(Consultant(row['id']).to_dict())
 
         return json.dumps(consultant_list, indent=4)
+
+    @staticmethod
+    def get_all_consultants_dicts():
+        consultant_list = []
+        db = DB.get_db()
+        consultant_ids = db.execute("SELECT id FROM Consultant ORDER BY id ASC").fetchall()
+        for row in consultant_ids:
+            consultant_list.append(Consultant(row['id']).to_dict())
+
+        return consultant_list
 
 
 class ClientNotFoundError(Exception):
@@ -513,6 +529,21 @@ class Client:
             client_list.append(Client(int(row['id'])).to_dict())
 
         return json.dumps(client_list, indent=4)
+
+    @staticmethod
+    def get_all_clients_dicts():
+
+
+        client_list = []
+
+        db = DB.get_db()
+
+        client_ids = db.execute("SELECT id FROM Client ORDER BY description ASC").fetchall()
+
+        for row in client_ids:
+            client_list.append(Client(int(row['id'])).to_dict())
+
+        return client_list
 
 
 class ParticipantNotFoundError(Exception):
@@ -711,8 +742,7 @@ class Participant:
 
     def delete_from_db(self, consultant: Consultant):
 
-
-        if not self.project_id in consultant.project_ids:
+        if not self.project_id in consultant.project_ids and not consultant.admin:
             raise ConsultantNotAssignedToProjectError
 
         if self.active:
@@ -1194,7 +1224,7 @@ class Project:
     def bf_code_is_unique(bf: str):
 
         # Check bf code not already in use
-        bf_check = DB.get_db().execute("SELECT id FROM Project WHERE bf_code=?", [bf]).fetchone()
+        bf_check = DB.get_db().execute("SELECT id FROM Project WHERE bf_code=?", [bf.upper()]).fetchone()
 
         if bf_check:
             return False
@@ -1214,7 +1244,7 @@ class Project:
             raise ProjectBFCodeError(
                 "Cannot update project's internal BF code to {} as it is already in use.".format(bf))
 
-        self.__bf_code = bf
+        self.__bf_code = bf.upper()
         self.update_last_activity_ts()
         self.update_in_db()  # Must update in DB to avoid two users claiming the same BF code before one is updated.
 
@@ -1321,7 +1351,7 @@ class Project:
         db = DB.get_db()
         db.execute(
             "UPDATE Project SET bf_code=?, client=?, title=?, project_type=?, active=?, start_ts=?, last_activity_ts=?, download_bundle_path=? WHERE id=?",
-            [self.bf_code, self.client_id, self.title, self.project_type_id, str(int(self.active)),
+            [self.bf_code.upper(), self.client_id, self.title, self.project_type_id, str(int(self.active)),
              datetime.isoformat(self.start_ts), datetime.isoformat(self.last_activity_ts), self.download_bundle_path,
              self.id])
         db.commit()
@@ -1436,6 +1466,8 @@ class Project:
     @staticmethod
     def add_new_to_db(bf_code: str, client_id: int, title: str, project_type_id: int, active: bool, start_ts: datetime):
 
+        bf_code = bf_code.upper()
+
         if not Project.bf_code_is_valid(bf_code):
             raise ProjectBFCodeError("Project BF code is not in correct format. Must begin with BF.")
 
@@ -1461,6 +1493,18 @@ class Project:
             project_list.append(Project(int(row['id'])).to_dict())
 
         return json.dumps(project_list, indent=4)
+
+    @staticmethod
+    def get_all_projects_dicts():
+        project_list = []
+
+        db = DB.get_db()
+        project_rows = db.execute("SELECT id FROM Project ORDER BY id").fetchall()
+        for row in project_rows:
+            project_list.append(Project(int(row['id'])).to_dict())
+
+        return project_list
+
 
     def generate_download_bundle(self, ignore_moment_flag=False):
 
