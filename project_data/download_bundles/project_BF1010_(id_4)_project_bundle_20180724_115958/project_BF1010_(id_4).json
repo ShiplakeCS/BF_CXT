@@ -1,0 +1,237 @@
+{
+    "id": 4,
+    "bf_code": "BF1010",
+    "client_id": 1,
+    "client": {
+        "id": 1,
+        "description": "Bunnyfoot",
+        "contact_name": "Caroline Bentley",
+        "contact_email": "caroline@bunnyfoot.com",
+        "contact_phone": "02076081670"
+    },
+    "title": "Added by staticmethod",
+    "project_type_id": 1,
+    "project_type_description": "Default Project",
+    "active": true,
+    "start_ts": "2018-07-18T17:06:43.456244",
+    "last_activity_ts": "2018-07-24T11:59:58.149524",
+    "consultants": [
+        {
+            "id": 3,
+            "email": "adam@bunnyfoot.com",
+            "display_name": "AdamD",
+            "first_name": "Adam",
+            "last_name": "Dimmick",
+            "active": true,
+            "admin": true
+        },
+        {
+            "id": 4,
+            "email": "nick@bunnyfoot.com",
+            "display_name": "Nick",
+            "first_name": "Nick",
+            "last_name": "Antram",
+            "active": true,
+            "admin": false
+        }
+    ],
+    "participants": [
+        {
+            "id": 16,
+            "within_project_number": 1,
+            "display_name": "Participant 1",
+            "active": true,
+            "last_activity_ts": "2018-07-18T17:16:28.108944",
+            "description": "Added by console",
+            "download_bundle_path": null,
+            "moments": [
+                {
+                    "id": 9,
+                    "parent_participant_id": 16,
+                    "rating": 2,
+                    "text": "Testing stuff",
+                    "gps": {
+                        "long": -0.10412089999999807,
+                        "lat": 51.52286669999999
+                    },
+                    "added_ts": "2018-07-19T17:22:36.673859",
+                    "modified_ts": "2018-07-19T17:22:36.673859",
+                    "mark_for_download": true,
+                    "tags": [
+                        "Blobs"
+                    ],
+                    "comments": [],
+                    "download_bundle_path": null
+                }
+            ]
+        },
+        {
+            "id": 17,
+            "within_project_number": 2,
+            "display_name": "Participant 2",
+            "active": true,
+            "last_activity_ts": "2018-07-18T17:18:18.860258",
+            "description": "bulk add",
+            "download_bundle_path": null,
+            "moments": []
+        },
+        {
+            "id": 18,
+            "within_project_number": 3,
+            "display_name": "Participant 3",
+            "active": false,
+            "last_activity_ts": "2018-07-18T17:18:18.864577",
+            "description": "bulk add",
+            "download_bundle_path": null,
+            "moments": []
+        },
+        {
+            "id": 19,
+            "within_project_number": 4,
+            "display_name": "Participant 4",
+            "active": true,
+            "last_activity_ts": "2018-07-18T17:18:18.868113",
+            "description": "bulk add",
+            "download_bundle_path": null,
+            "moments": []
+        },
+        {
+            "id": 20,
+            "within_project_number": 5,
+            "display_name": "Participant 1",
+            "active": true,
+            "last_activity_ts": "2018-07-19T19:57:06.582837",
+            "description": "Male-Daring Dave",
+            "download_bundle_path": null,
+            "moments": []
+        },
+        {
+            "id": 21,
+            "within_project_number": 6,
+            "display_name": "Participant 2",
+            "active": true,
+            "last_activity_ts": "2018-07-19T19:57:06.586461",
+            "description": "Male-Daring Dave",
+            "download_bundle_path": null,
+            "moments": []
+        },
+        {
+            "id": 22,
+            "within_project_number": 7,
+            "display_name": "Participant 3",
+            "active": true,
+            "last_activity_ts": "2018-07-19T19:57:06.587811",
+            "description": "Female-Sharing Sarah",
+            "download_bundle_path": null,
+            "moments": [
+                {
+                    "id": 15,
+                    "parent_participant_id": 22,
+                    "rating": 1,
+                    "text": "terrible!",
+                    "gps": {
+                        "long": null,
+                        "lat": null
+                    },
+                    "added_ts": "2018-07-23T09:59:31.539355",
+                    "modified_ts": "2018-07-23T09:59:31.539361",
+                    "mark_for_download": true,
+                    "tags": [],
+                    "comments": [],
+                    "download_bundle_path": null
+                }
+            ]
+        },
+        {
+            "id": 23,
+            "within_project_number": 8,
+            "display_name": "Participant 4",
+            "active": true,
+            "last_activity_ts": "2018-07-19T19:57:06.589020",
+            "description": "Male-Timid Tim",
+            "download_bundle_path": null,
+            "moments": [
+                {
+                    "id": 14,
+                    "parent_participant_id": 23,
+                    "rating": 5,
+                    "text": "Homer's here!!",
+                    "gps": {
+                        "long": null,
+                        "lat": null
+                    },
+                    "added_ts": "2018-07-23T09:25:18.904550",
+                    "modified_ts": "2018-07-23T09:25:18.904556",
+                    "mark_for_download": true,
+                    "tags": [],
+                    "comments": [],
+                    "download_bundle_path": null
+                },
+                {
+                    "id": 13,
+                    "parent_participant_id": 23,
+                    "rating": 5,
+                    "text": "Homer's here!!",
+                    "gps": {
+                        "long": null,
+                        "lat": null
+                    },
+                    "added_ts": "2018-07-23T09:23:59.949571",
+                    "modified_ts": "2018-07-23T09:23:59.949577",
+                    "mark_for_download": true,
+                    "tags": [],
+                    "comments": [],
+                    "download_bundle_path": null
+                },
+                {
+                    "id": 12,
+                    "parent_participant_id": 23,
+                    "rating": 5,
+                    "text": "Homer's here!!",
+                    "gps": {
+                        "long": null,
+                        "lat": null
+                    },
+                    "added_ts": "2018-07-23T09:22:26.939935",
+                    "modified_ts": "2018-07-23T09:22:26.939942",
+                    "mark_for_download": true,
+                    "tags": [],
+                    "comments": [],
+                    "download_bundle_path": null
+                },
+                {
+                    "id": 11,
+                    "parent_participant_id": 23,
+                    "rating": 3,
+                    "text": "Less good service",
+                    "gps": {
+                        "long": null,
+                        "lat": null
+                    },
+                    "added_ts": "2018-07-23T09:00:41.571429",
+                    "modified_ts": "2018-07-23T09:00:41.571435",
+                    "mark_for_download": false,
+                    "tags": [],
+                    "comments": [],
+                    "download_bundle_path": null
+                },
+                {
+                    "id": 10,
+                    "parent_participant_id": 23,
+                    "rating": 5,
+                    "text": "The best service ever!",
+                    "gps": {
+                        "long": null,
+                        "lat": null
+                    },
+                    "added_ts": "2018-07-23T08:58:48.145577",
+                    "modified_ts": "2018-07-23T08:58:48.145584",
+                    "mark_for_download": false,
+                    "tags": [],
+                    "comments": [],
+                    "download_bundle_path": null
+                }
+            ]
+        }
+    ]
+}
