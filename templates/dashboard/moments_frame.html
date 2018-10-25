@@ -124,6 +124,15 @@
         }
 
         function render_moment_html(m) {
+
+            var port = "";
+
+            if (window.location.port != 80 && window.location.port != 443){
+                port = ":" + window.location.port;
+            }
+
+            var https_image_url_base = window.location.protocol + "//" + window.location.hostname + port;
+
             var moment_html = '<div class="moment_card card mb-4 participant_' + m.parent_participant_id + '" id="moment_' + m.id + '">';
 
             // MOMENT CARD HEADER
@@ -161,7 +170,7 @@
                 // if image...
 
                 if (m.media[media_num].media_type == 'image') {
-                    moment_html += '<a href="/api/participants/' + m.parent_participant_id + '/moments/' + m.id + '/media/' + m.media[media_num].id + '/original" aria-label="original thumbnail" target="_blank"><img class="card-img-bottom my-2 img-thumbnail" src="/api/participants/' + m.parent_participant_id + '/moments/' + m.id + '/media/' + m.media[media_num].id + '/large" alt="Moment image" style="width:100%"></a>';
+                    moment_html += '<a href="/api/participants/' + m.parent_participant_id + '/moments/' + m.id + '/media/' + m.media[media_num].id + '/original" aria-label="original thumbnail" target="_blank"><img class="card-img-bottom my-2 img-thumbnail" src="' + https_image_url_base + '/api/participants/' + m.parent_participant_id + '/moments/' + m.id + '/media/' + m.media[media_num].id + '/large" alt="Moment image" style="width:100%"></a>';
 
                 }
                 //if video...
