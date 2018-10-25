@@ -2589,7 +2589,7 @@ class MomentMedia:
             # Check if file exists within upload folder - may not be there yet, not ready to copy over
             tmp_path = os.path.join(app.config['UPLOAD_FOLDER'], file_name)
             if not os.path.exists(tmp_path):
-                raise MomentMediaNotFoundError("{} not found within temporary upload folder.".format(file_name))
+                raise MomentMediaNotFoundError("{} not found within temporary upload folder. App's upload folder is set to: {}. Overall temporary path being accessed is: {}.".format(file_name, app.config['UPLOAD_FOLDER'], tmp_path))
 
             # Add media record to db, get the new id
 
