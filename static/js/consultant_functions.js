@@ -213,7 +213,6 @@ function load_and_show_participant_modal(proj_id, p_id, mode = 'view') {
 
     var https_url_base = window.location.protocol + "//" + window.location.hostname + port;
 
-
     var ending;
 
     if (mode == 'view') {
@@ -230,10 +229,13 @@ function load_and_show_participant_modal(proj_id, p_id, mode = 'view') {
     var modal_url = https_url_base + '/projects/' + proj_id + '/participants/' + ending;
     console.log(modal_url);
 
-    $('#participant_modal_placeholder').load(modal_url, null, function () {
+    /*$('#participant_modal_placeholder').load(modal_url, null, function () {
         $('#view_edit_participant_modal').modal('show');
     });
-
+    */
+    $('#participant_modal_placeholder').load('https://cxt.bunnyfoot.com/projects/10/participants/68', null, function () {
+        $('#view_edit_participant_modal').modal('show');
+    });
 
 }
 
