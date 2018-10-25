@@ -205,20 +205,29 @@ function scroll_to_item(moment_id = null, comment_id = null) {
 
 function load_and_show_participant_modal(proj_id, p_id, mode = 'view') {
 
+    var port = "";
+
+    if (window.location.port != 80 && window.location.port != 443) {
+        port = ":" + window.location.port;
+    }
+
+    var https_url_base = window.location.protocol + "//" + window.location.hostname + port;
+
+
     var ending;
 
     if (mode == 'view') {
         ending = p_id;
     }
     else if (mode == 'edit') {
-        ending = p_id+'/edit';
+        ending = p_id + '/edit';
     }
 
-    else if (mode == 'add'){
+    else if (mode == 'add') {
         ending = 'add';
     }
 
-    $('#participant_modal_placeholder').load('/projects/' + proj_id + '/participants/' + ending, null, function () {
+    $('#participant_modal_placeholder').load(https_url_base + '/projects/' + proj_id + '/participants/' + ending, null, function () {
         $('#view_edit_participant_modal').modal('show');
     });
 
@@ -244,17 +253,17 @@ function delete_participant_from_project(project_id, participant_id) {
     });
 }
 
-function show_client_modal(client_id=null, mode){
+function show_client_modal(client_id = null, mode) {
 
     var ending;
 
-    if (mode == 'add'){
+    if (mode == 'add') {
         ending = 'add';
     }
-    else if (mode == 'edit'){
+    else if (mode == 'edit') {
         ending = client_id + '/edit'
     }
-    else if (mode == 'view'){
+    else if (mode == 'view') {
         ending = client_id + '/view'
     }
     $('#client_modal_placeholder').load('https://cxt.bunnyfoot.com/clients/' + ending, null, function () {
@@ -262,17 +271,19 @@ function show_client_modal(client_id=null, mode){
     });
 
 
-}function show_consultant_modal(consultant_id=null, mode){
+}
+
+function show_consultant_modal(consultant_id = null, mode) {
 
     var ending;
 
-    if (mode == 'add'){
+    if (mode == 'add') {
         ending = 'add';
     }
-    else if (mode == 'edit'){
+    else if (mode == 'edit') {
         ending = consultant_id + '/edit'
     }
-    else if (mode == 'view'){
+    else if (mode == 'view') {
         ending = consultant_id + '/view'
     }
     $('#consultant_modal_placeholder').load('https://cxt.bunnyfoot.com/consultants/' + ending, null, function () {
@@ -281,16 +292,16 @@ function show_client_modal(client_id=null, mode){
 
 }
 
-function show_project_modal(project_id=null, mode){
+function show_project_modal(project_id = null, mode) {
 
     var ending;
 
     console.log('show project modal triggered');
 
-    if (mode == 'add'){
+    if (mode == 'add') {
         ending = 'add';
     }
-    else if (mode == 'edit'){
+    else if (mode == 'edit') {
         ending = project_id + '/edit';
     }
 
