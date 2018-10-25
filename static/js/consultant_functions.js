@@ -233,7 +233,7 @@ function load_and_show_participant_modal(proj_id, p_id, mode = 'view') {
         $('#view_edit_participant_modal').modal('show');
     });
     */
-    $('#participant_modal_placeholder').load('https://cxt.bunnyfoot.com/projects/10/participants/68', null, function () {
+    $('#participant_modal_placeholder').load('https://cxt.bunnyfoot.com/projects/10/participants/68/', null, function () {
         $('#view_edit_participant_modal').modal('show');
     });
 
