@@ -227,7 +227,7 @@ function load_and_show_participant_modal(proj_id, p_id, mode = 'view') {
 function delete_participant_from_project(project_id, participant_id) {
 
     $.ajax({
-        url: '/api/projects/' + project_id + '/participants/' + participant_id,
+        url: 'https://cxt.bunnyfoot.com/api/projects/' + project_id + '/participants/' + participant_id,
         method: 'delete',
         success: function (data, status, xhr) {
             // Show dialogue, close window
@@ -257,7 +257,7 @@ function show_client_modal(client_id=null, mode){
     else if (mode == 'view'){
         ending = client_id + '/view'
     }
-    $('#client_modal_placeholder').load('/clients/' + ending, null, function () {
+    $('#client_modal_placeholder').load('https://cxt.bunnyfoot.com/clients/' + ending, null, function () {
         $('#client_modal').modal('show');
     });
 
@@ -275,7 +275,7 @@ function show_client_modal(client_id=null, mode){
     else if (mode == 'view'){
         ending = consultant_id + '/view'
     }
-    $('#consultant_modal_placeholder').load('/consultants/' + ending, null, function () {
+    $('#consultant_modal_placeholder').load('https://cxt.bunnyfoot.com/consultants/' + ending, null, function () {
         $('#consultant_modal').modal('show');
     });
 
@@ -294,7 +294,7 @@ function show_project_modal(project_id=null, mode){
         ending = project_id + '/edit';
     }
 
-    $('#project_modal_placeholder').load('/projects/' + ending, null, function () {
+    $('#project_modal_placeholder').load('https://cxt.bunnyfoot.com/projects/' + ending, null, function () {
         $('#project_modal').modal('show');
     });
 }
