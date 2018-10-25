@@ -207,7 +207,7 @@ function load_and_show_participant_modal(proj_id, p_id, mode = 'view') {
 
     var port = "";
 
-    if (window.location.port != 80 && window.location.port != 443) {
+    if (window.location.port != 80 && window.location.port != 443 && window.location.port != "") {
         port = ":" + window.location.port;
     }
 
@@ -227,9 +227,13 @@ function load_and_show_participant_modal(proj_id, p_id, mode = 'view') {
         ending = 'add';
     }
 
-    $('#participant_modal_placeholder').load(https_url_base + '/projects/' + proj_id + '/participants/' + ending, null, function () {
+    var modal_url = https_url_base + '/projects/' + proj_id + '/participants/' + ending;
+    console.log(modal_url);
+
+    $('#participant_modal_placeholder').load(modal_url, null, function () {
         $('#view_edit_participant_modal').modal('show');
     });
+
 
 }
 
