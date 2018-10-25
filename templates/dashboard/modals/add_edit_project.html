@@ -144,7 +144,16 @@
 
             console.log('attempting to load clients');
 
-            $.get('/api/clients', function (data, status) {
+            var port = "";
+
+            if (window.location.port != 80 && window.location.port != 443 && window.location.port != "") {
+                port = ":" + window.location.port;
+            }
+
+            var https_url_base = window.location.protocol + "//" + window.location.hostname + port;
+
+
+            $.get('/api/clients/', function (data, status) {
                 var clients = JSON.parse(data);
                 for (var i = 0; i < clients.length; i++) {
 
@@ -166,7 +175,7 @@
 
             console.log(selected_consultants);
 
-            $.get('/api/consultants', function (data, status) {
+            $.get('/api/consultants/', function (data, status) {
                 var consultants = JSON.parse(data);
                 for (var i = 0; i < consultants.length; i++) {
 
