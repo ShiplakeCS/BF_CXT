@@ -198,6 +198,7 @@ def participant_moment_capture_media():
         if f:
             if is_image or f.filename[-3:].upper() in video_exts:
                 filename = str(participant.id) + "_" + secure_filename(f.filename)
+                filename = filename.lower()
                 filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 f.save(filepath)
                 thumbnail_path = None
