@@ -197,14 +197,14 @@ def participant_moment_capture_media():
         is_image = f.filename[-3:].upper() in image_exts or f.filename[-4:].upper() in image_exts
         if f:
             if is_image or f.filename[-3:].upper() in video_exts:
+
+                # Disabled 26/10/18
                 #filename = str(participant.id) + "_" + secure_filename(f.filename)
+
                 # Updated 26/10/18 - filenames no longer take on orginal name but a timestamped name to avoid issue of Safari showing a cached tumbnail image when uploading multiple moments in iOS
-
-
-
                 now = datetime.datetime.now()
-                filename = "{0}_{1}_{2:02d}_{3:02d}_{4:02d}{5:02d}{6:02d}".format(participant.id, now.year, now.month, now.day, now.hour, now.minute, now.second)
-                filename = filename.lower() + f_suffix
+                filename = "{0}_{1}_{2:02d}_{3:02d}_{4:02d}{5:02d}{6:02d}{7}".format(participant.id, now.year, now.month, now.day, now.hour, now.minute, now.second, f_suffix)
+                filename = filename.lower()
 
                 filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 f.save(filepath)
