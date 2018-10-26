@@ -216,7 +216,7 @@ function load_and_show_participant_modal(proj_id, p_id, mode = 'view') {
     var ending;
 
     if (mode == 'view') {
-        ending = p_id + '/';
+        ending = p_id + '/'; // Turns out you need this trailing slash to avoid an HTTP redirect issue
     }
     else if (mode == 'edit') {
         ending = p_id + '/edit';
